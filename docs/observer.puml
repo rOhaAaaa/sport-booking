@@ -1,0 +1,74 @@
+@startuml
+top to bottom direction
+
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam defaultFontSize 16
+skinparam classAttributeIconSize 0
+
+class BookingConfirmationService {
+  + confirm(booking, settlement): Booking
+}
+
+class BookingConfirmedEvent <<Event>> {
+  booking_id: int
+}
+
+class BookingEventPublisher <<Subject>> #E2F0D9 {
+  - observers: list
+  + subscribe(observer): void
+  + unsubscribe(observer): void
+  + notify(event): void
+}
+
+interface BookingObserver <<Observer>> #E2F0D9 {
+  + update(event): void
+}
+
+class BonusObserver <<ConcreteObserver>> #E2F0D9 {
+  + update(event): void
+}
+
+class NotificationObserver <<ConcreteObserver>> #E2F0D9 {
+  + update(event): void
+}
+
+class LoyaltyService {
+  + calculate_bonus(amount): int
+}
+
+class BonusTransaction {
+  points: int
+}
+
+class Notification {
+  kind: str
+  message: str
+  is_read: bool
+}
+
+BookingConfirmationService ..> BookingConfirmedEvent : створює
+BookingConfirmationService --> BookingEventPublisher : повідомляє
+
+BookingEventPublisher --> "0..*" BookingObserver : спостерігачі
+BookingEventPublisher ..> BookingConfirmedEvent : передає
+
+BookingObserver <|.. BonusObserver
+BookingObserver <|.. NotificationObserver
+BookingObserver ..> BookingConfirmedEvent : отримує
+
+BonusObserver ..> LoyaltyService : розрахунок бонусів
+BonusObserver ..> BonusTransaction : зберігає нарахування
+BonusObserver ..> Notification : повідомлення про бонуси
+NotificationObserver ..> Notification : підтвердження бронювання
+
+note bottom of BonusTransaction
+  Одне нарахування на бронювання.
+  Повторне оброблення не створює дублікат.
+end note
+
+legend bottom
+  Зелений колір — учасники Observer
+endlegend
+
+@enduml

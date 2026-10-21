@@ -1,0 +1,63 @@
+@startuml
+top to bottom direction
+
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam defaultFontSize 16
+skinparam classAttributeIconSize 0
+
+abstract class BookingProcessor <<Template Method>> #FFF2CC {
+  + create_booking(user, data): Booking
+  # validate_input(user, data): void
+  {abstract} # check_availability(user, data): void
+  {abstract} # calculate_price(data): Decimal
+  {abstract} # save_booking(user, data, price): Booking
+}
+
+class HallBookingProcessor <<ConcreteClass>> #FFF2CC {
+  # check_availability(user, data): void
+  # calculate_price(data): Decimal
+  # save_booking(user, data, price): Booking
+}
+
+class SessionBookingProcessor <<ConcreteClass>> #FFF2CC {
+  # check_availability(user, data): void
+  # calculate_price(data): Decimal
+  # save_booking(user, data, price): Booking
+}
+
+class Booking {
+  status: str
+  starts_at: datetime
+  ends_at: datetime
+  total_price: Decimal
+}
+
+class BookingService {
+  + create_hall_booking(user, data): Booking
+  + create_session_booking(user, data): Booking
+}
+
+BookingProcessor <|-- HallBookingProcessor
+BookingProcessor <|-- SessionBookingProcessor
+
+BookingService ..> HallBookingProcessor : використовує
+BookingService ..> SessionBookingProcessor : використовує
+
+BookingProcessor ..> Booking : повертає
+
+note top of BookingProcessor
+  create_booking() визначає спільний алгоритм:
+  validate_input()
+  check_availability()
+  calculate_price()
+  save_booking()
+end note
+
+legend bottom
+  Жовтий колір — учасники Template Method
+  + публічна операція
+  # захищена операція за домовленістю
+endlegend
+
+@enduml

@@ -1,0 +1,157 @@
+@startuml
+top to bottom direction
+
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam defaultFontSize 14
+skinparam classAttributeIconSize 0
+skinparam packageStyle rectangle
+hide methods
+
+package "Користувачі" {
+  class User {
+    username: str
+    email: str
+    is_staff: bool
+  }
+
+  class UserProfile {
+    phone: str
+    photo: Image
+    preferences: str
+  }
+
+  User "1" -- "0..1" UserProfile : профіль
+}
+
+package "Каталог і розклад" {
+  class SportsCenter {
+    name: str
+    address: str
+  }
+
+  class Hall {
+    name: str
+    capacity: int
+    hourly_price: Decimal
+  }
+
+  class SportType {
+    name: str
+  }
+
+  class Section {
+    name: str
+    skill_level: str
+    age_category: str
+  }
+
+  class Trainer {
+    full_name: str
+    specialization: str
+  }
+
+  class TrainingSession {
+    starts_at: datetime
+    ends_at: datetime
+    capacity: int
+    price: Decimal
+  }
+
+  SportsCenter "1" -- "0..*" Hall : містить
+  SportType "1" -- "0..*" Hall : вид спорту
+  SportType "1" -- "0..*" Section : вид спорту
+  Section "1" -- "0..*" TrainingSession : заняття
+  Hall "1" -- "0..*" TrainingSession : місце проведення
+  Trainer "1" -- "0..*" TrainingSession : проводить
+}
+
+package "Бронювання та оплата" {
+  class Booking {
+    status: str
+    starts_at: datetime
+    ends_at: datetime
+    total_price: Decimal
+    created_at: datetime
+  }
+
+  class Payment {
+    amount: Decimal
+    status: str
+    created_at: datetime
+  }
+
+  User "1" -- "0..*" Booking : створює
+  Booking "0..*" --> "0..1" Hall : оренда залу
+  Booking "0..*" --> "0..1" TrainingSession : місце на занятті
+  Booking "1" -- "0..*" Payment : спроби оплати
+
+  note bottom of Booking
+    Бронювання стосується або залу,
+    або заняття: рівно один із двох зв'язків.
+    Для заняття час копіюється з розкладу.
+  end note
+}
+
+package "Абонементи" {
+  class MembershipPlan {
+    name: str
+    kind: str
+    price: Decimal
+    validity_days: int
+    visit_limit: int
+    service_scope: str
+  }
+
+  class Membership {
+    valid_from: datetime
+    valid_until: datetime
+    remaining_visits: int
+    status: str
+  }
+
+  MembershipPlan "1" -- "0..*" Membership : тариф
+  User "1" -- "0..*" Membership : володіє
+  Booking "0..*" --> "0..1" Membership : використаний абонемент
+}
+
+package "Лояльність і повідомлення" {
+  class LoyaltyCard {
+    category: str
+  }
+
+  class BonusTransaction {
+    points: int
+    created_at: datetime
+  }
+
+  class Notification {
+    kind: str
+    message: str
+    is_read: bool
+    created_at: datetime
+  }
+
+  class Offer {
+    title: str
+    description: str
+    starts_at: datetime
+    ends_at: datetime
+    target_card_category: str
+  }
+
+  User "1" -- "0..1" LoyaltyCard : картка
+  LoyaltyCard "1" -- "0..*" BonusTransaction : нарахування
+  Booking "1" -- "0..1" BonusTransaction : бонус за бронювання
+  User "1" -- "0..*" Notification : отримувач
+  Notification "0..*" --> "0..1" Booking : пов'язане бронювання
+  Notification "0..*" --> "0..1" Offer : пов'язана пропозиція
+}
+
+legend bottom
+  1 — один об'єкт
+  0..1 — необов'язковий зв'язок
+  0..* — будь-яка кількість об'єктів
+endlegend
+
+@enduml

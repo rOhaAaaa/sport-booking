@@ -1,0 +1,147 @@
+@startuml
+top to bottom direction
+
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam defaultFontSize 15
+skinparam packageStyle rectangle
+skinparam nodesep 25
+skinparam ranksep 35
+hide empty members
+hide circle
+
+package "Користувачі" {
+  class User
+  class UserProfile
+  User "1" -- "0..1" UserProfile
+}
+
+package "Каталог і розклад" {
+  class SportsCenter
+  class Hall
+  class SportType
+  class Section
+  class Trainer
+  class TrainingSession
+
+  SportsCenter "1" -- "0..*" Hall
+  SportType "1" -- "0..*" Hall
+  SportType "1" -- "0..*" Section
+  Section "1" -- "0..*" TrainingSession
+  Hall "1" -- "0..*" TrainingSession
+  Trainer "1" -- "0..*" TrainingSession
+}
+
+package "Бронювання та абонементи" {
+  class Booking
+  class Payment
+  class Membership
+  class MembershipPlan
+
+  Booking "1" -- "0..*" Payment
+  MembershipPlan "1" -- "0..*" Membership
+  Booking "0..*" --> "0..1" Membership
+}
+
+package "Лояльність і повідомлення" {
+  class LoyaltyCard
+  class BonusTransaction
+  class Notification
+  class Offer
+
+  LoyaltyCard "1" -- "0..*" BonusTransaction
+  Notification "0..*" --> "0..1" Offer
+}
+
+package "Створення бронювання" {
+  class BookingService
+
+  abstract class BookingProcessor <<Template Method>> #FFF2CC
+
+  class HallBookingProcessor <<ConcreteClass>> #FFF2CC
+
+  class SessionBookingProcessor <<ConcreteClass>> #FFF2CC
+
+  BookingProcessor <|-- HallBookingProcessor
+  BookingProcessor <|-- SessionBookingProcessor
+
+  BookingService ..> HallBookingProcessor
+  BookingService ..> SessionBookingProcessor
+}
+
+package "Правила лояльності" {
+  class LoyaltyService <<Context>> #DDEBF7
+
+  interface LoyaltyStrategy <<Strategy>> #DDEBF7
+
+  class StandardStrategy <<ConcreteStrategy>> #DDEBF7
+
+  class PremiumStrategy <<ConcreteStrategy>> #DDEBF7
+
+  class CorporateStrategy <<ConcreteStrategy>> #DDEBF7
+
+  LoyaltyService --> "1" LoyaltyStrategy
+
+  LoyaltyStrategy <|.. StandardStrategy
+  LoyaltyStrategy <|.. PremiumStrategy
+  LoyaltyStrategy <|.. CorporateStrategy
+}
+
+package "Підтвердження та події" {
+  class BookingConfirmationService
+  class BookingConfirmedEvent <<Event>>
+
+  class BookingEventPublisher <<Subject>> #E2F0D9
+
+  interface BookingObserver <<Observer>> #E2F0D9
+
+  class BonusObserver <<ConcreteObserver>> #E2F0D9
+
+  class NotificationObserver <<ConcreteObserver>> #E2F0D9
+
+  BookingConfirmationService --> BookingEventPublisher
+  BookingConfirmationService ..> BookingConfirmedEvent
+
+  BookingEventPublisher --> "0..*" BookingObserver
+  BookingEventPublisher ..> BookingConfirmedEvent
+  BookingObserver ..> BookingConfirmedEvent
+
+  BookingObserver <|.. BonusObserver
+  BookingObserver <|.. NotificationObserver
+}
+
+User "1" -- "0..*" Booking
+User "1" -- "0..*" Membership
+User "1" -- "0..1" LoyaltyCard
+User "1" -- "0..*" Notification
+
+Booking "0..*" --> "0..1" Hall : оренда
+Booking "0..*" --> "0..1" TrainingSession : місце
+Booking "1" -- "0..1" BonusTransaction
+Notification "0..*" --> "0..1" Booking
+
+HallBookingProcessor ..> Hall : перевіряє
+SessionBookingProcessor ..> TrainingSession : перевіряє
+BookingProcessor ..> Booking : створює
+BookingProcessor ..> LoyaltyService : кінцева вартість
+
+LoyaltyService ..> LoyaltyCard : категорія клієнта
+
+BookingConfirmationService ..> Booking : підтверджує
+BookingConfirmationService ..> Payment : перевіряє оплату
+BookingConfirmationService ..> Membership : перевіряє абонемент
+
+BonusObserver ..> LoyaltyService : кількість бонусів
+BonusObserver ..> BonusTransaction : записує
+BonusObserver ..> Notification : бонуси
+NotificationObserver ..> Notification : підтвердження
+
+legend bottom
+  Жовтий — Template Method
+  Блакитний — Strategy
+  Зелений — Observer
+  Сірий — моделі та допоміжні сервіси
+  Поля і методи наведено на деталізованих діаграмах
+endlegend
+
+@enduml

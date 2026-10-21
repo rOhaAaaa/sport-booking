@@ -1,0 +1,57 @@
+@startuml
+top to bottom direction
+
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam defaultFontSize 16
+skinparam classAttributeIconSize 0
+
+interface LoyaltyStrategy <<Strategy>> #DDEBF7 {
+  + calculate_price(base_price, sport_type): Decimal
+  + calculate_bonus(amount): int
+}
+
+class StandardStrategy <<ConcreteStrategy>> #DDEBF7 {
+  + calculate_price(base_price, sport_type): Decimal
+  + calculate_bonus(amount): int
+}
+
+class PremiumStrategy <<ConcreteStrategy>> #DDEBF7 {
+  + calculate_price(base_price, sport_type): Decimal
+  + calculate_bonus(amount): int
+}
+
+class CorporateStrategy <<ConcreteStrategy>> #DDEBF7 {
+  + calculate_price(base_price, sport_type): Decimal
+  + calculate_bonus(amount): int
+}
+
+class LoyaltyService <<Context>> #DDEBF7 {
+  - strategy: LoyaltyStrategy
+  + calculate_price(base_price, sport_type): Decimal
+  + calculate_bonus(amount): int
+}
+
+class LoyaltyCard {
+  category: str
+}
+
+LoyaltyStrategy <|.. StandardStrategy
+LoyaltyStrategy <|.. PremiumStrategy
+LoyaltyStrategy <|.. CorporateStrategy
+
+LoyaltyService --> "1" LoyaltyStrategy : використовує
+LoyaltyService ..> LoyaltyCard : вибір за категорією
+
+note top of LoyaltyService
+  Конкретну стратегію передає код,
+  який створює сервіс для клієнта.
+  Сервіс делегує їй розрахунки.
+end note
+
+legend bottom
+  Блакитний колір — учасники Strategy
+  Пунктир із трикутником — реалізація інтерфейсу
+endlegend
+
+@enduml
