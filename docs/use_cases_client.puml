@@ -1,0 +1,58 @@
+@startuml
+left to right direction
+
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam defaultFontSize 16
+skinparam packageStyle rectangle
+
+actor "Гість" as Guest
+actor "Клієнт" as Client
+
+rectangle "Спортивний сервіс — користувацькі функції" {
+  usecase "Переглянути каталог\nзалів, секцій і тренерів" as Catalog
+  usecase "Застосувати фільтри" as Filter
+  usecase "Переглянути розклад" as Schedule
+  usecase "Зареєструватися" as Register
+  usecase "Увійти до системи" as Login
+
+  usecase "Забронювати зал" as BookHall
+  usecase "Перевірити\nдоступність залу" as CheckHall
+
+  usecase "Забронювати місце\nна занятті" as BookSession
+  usecase "Перевірити\nнаявність місць" as CheckSeats
+
+  usecase "Оплатити бронювання" as Pay
+  usecase "Використати абонемент" as UsePass
+  usecase "Переглянути статус\nта історію бронювань" as History
+  usecase "Редагувати профіль" as Profile
+  usecase "Придбати та переглянути\nабонементи" as Passes
+  usecase "Переглянути картку\nлояльності та бонуси" as Loyalty
+  usecase "Переглянути пропозиції\nта сповіщення" as Notifications
+}
+
+Guest -- Catalog
+Guest -- Filter
+Guest -- Schedule
+Guest -- Register
+Guest -- Login
+
+Client -- Catalog
+Client -- Filter
+Client -- Schedule
+Client -- Login
+Client -- BookHall
+Client -- BookSession
+Client -- Pay
+Client -- UsePass
+Client -- History
+Client -- Profile
+Client -- Passes
+Client -- Loyalty
+Client -- Notifications
+
+Filter ..> Catalog : <<extend>>
+BookHall ..> CheckHall : <<include>>
+BookSession ..> CheckSeats : <<include>>
+
+@enduml

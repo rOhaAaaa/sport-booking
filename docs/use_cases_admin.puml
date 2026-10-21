@@ -1,0 +1,30 @@
+@startuml
+left to right direction
+
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam defaultFontSize 16
+
+actor "Адміністратор" as Admin
+
+rectangle "Спортивний сервіс — адміністрування" {
+  usecase "Увійти до системи" as Login
+  usecase "Керувати спортивними\nцентрами та залами" as Facilities
+  usecase "Керувати секціями\nта тренерами" as Catalog
+  usecase "Керувати розкладом" as Schedule
+  usecase "Керувати тарифами\nта абонементами" as Plans
+  usecase "Керувати картками\nта правилами лояльності" as Loyalty
+  usecase "Переглянути бронювання\nта результати оплат" as Bookings
+  usecase "Публікувати акції\nта повідомлення" as Offers
+}
+
+Admin -- Login
+Admin -- Facilities
+Admin -- Catalog
+Admin -- Schedule
+Admin -- Plans
+Admin -- Loyalty
+Admin -- Bookings
+Admin -- Offers
+
+@enduml
