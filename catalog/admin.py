@@ -68,3 +68,9 @@ class TrainingSessionAdmin(admin.ModelAdmin):
     list_filter = ("section", "hall", "trainer")
     list_select_related = ("section", "hall", "trainer")
     date_hierarchy = "starts_at"
+        
+    search_fields = (
+        "section__name",
+        "hall__name",
+        "trainer__full_name",
+    )
