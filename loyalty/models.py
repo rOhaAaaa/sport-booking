@@ -231,3 +231,65 @@ class Membership(models.Model):
 
     def __str__(self):
         return f"{self.user} — {self.plan}"    
+
+class BonusTransaction(models.Model):
+    card = models.ForeignKey(
+        LoyaltyCard,
+        verbose_name="Картка лояльності",
+        on_delete=models.PROTECT,
+        related_name="bonus_transactions",
+    )
+    booking = models.OneToOneField(
+        "bookings.Booking",
+        verbose_name="Бронювання",
+        on_delete=models.PROTECT,
+        related_name="bonus_transaction",
+    )
+    points = models.PositiveIntegerField(
+        "Кількість балів",
+        validators=[MinValueValidator(1)],
+    )
+    created_at = models.DateTimeField(
+        "Створено",
+        auto_now_add=True,
+    )
+
+    class Meta:
+        verbose_name = "Нарахування бонусів"
+        verbose_name_plural = "Нарахування бонусів"
+        ordering = ["-created_at"]
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(points__gte=1),
+                name="bonus_points_positive",
+            ),
+        ]
+
+    def clean(self):
+        super().clean()
+        errors = {}
+
+        if self.booking_id:
+            booking = self.booking
+
+            if booking.status != "confirmed":
+                errors["booking"] = (
+                    "Бонуси можна нараховувати лише "
+                    "за підтверджене бронювання."
+                )
+
+            if self.card_id:
+                if self.card.user_id != booking.user_id:
+                    errors["card"] = (
+                        "Картка має належати користувачу, "
+                        "який здійснив бронювання."
+                    )
+
+        if errors:
+            raise ValidationError(errors)
+
+    def __str__(self):
+        return (
+            f"+{self.points} балів — "
+            f"бронювання №{self.booking_id}"
+        )
