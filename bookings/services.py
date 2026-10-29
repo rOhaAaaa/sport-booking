@@ -1,12 +1,15 @@
 from decimal import Decimal
+from datetime import timedelta
 
 from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.utils import timezone
+from django.db.models import F
 
 from .events import BookingConfirmedEvent, BookingEventPublisher
 from .models import Booking, Payment
 from .observers import BonusObserver, NotificationObserver
+from loyalty.models import Membership, MembershipPlan
 from .processors import (
     HallBookingProcessor,
     SessionBookingProcessor,
@@ -45,10 +48,24 @@ class BookingConfirmationService:
 
         self.publisher = publisher
 
-    def confirm(self, booking_id, settlement="payment"):
-        if settlement not in {"payment", "free"}:
+    def confirm(
+        self,
+        booking_id,
+        settlement="payment",
+        membership_id=None,
+    ):
+        if settlement not in {"payment", "free", "membership"}:
             raise ValidationError(
                 "Непідтримуваний спосіб підтвердження."
+            )
+
+        if settlement == "membership" and membership_id is None:
+            raise ValidationError("Потрібно вибрати абонемент.")
+
+        if settlement != "membership" and membership_id is not None:
+            raise ValidationError(
+                "Абонемент передається лише для способу "
+                "підтвердження membership."
             )
 
         with transaction.atomic():
@@ -75,21 +92,27 @@ class BookingConfirmationService:
                     "час початку якого вже настав."
                 )
 
-            if booking.membership_id is not None:
+            if (
+                booking.membership_id is not None
+                and settlement != "membership"
+            ):
                 raise ValidationError(
-                    "Для цього бронювання потрібно застосувати "
-                    "окремий сценарій використання абонемента."
+                    "Для бронювання з абонементом оберіть "
+                    "відповідний спосіб підтвердження."
                 )
 
             booking.full_clean()
 
             if settlement == "payment":
                 self._validate_payment(booking)
-            else:
+            elif settlement == "free":
                 self._validate_free_service(booking)
+            else:
+                self._apply_membership(booking, membership_id)
 
             booking.status = Booking.Status.CONFIRMED
-            booking.save(update_fields=["status"])
+            booking.full_clean()
+            booking.save(update_fields=["status", "membership"])
 
             event = BookingConfirmedEvent(
                 booking_id=booking.pk,
@@ -155,3 +178,99 @@ class BookingConfirmationService:
                 "Користувач не має права отримати "
                 "цю послугу безкоштовно."
             )
+
+    def _apply_membership(self, booking, membership_id):
+        if booking.payments.filter(
+            status=Payment.Status.SUCCESS,
+        ).exists():
+            raise ValidationError(
+                "Бронювання вже має успішну оплату. "
+                "Додаткове списання абонемента не потрібне."
+            )
+
+        if booking.total_price <= 0:
+            raise ValidationError(
+                "Безкоштовну послугу потрібно підтвердити "
+                "без списання абонемента."
+            )
+
+        try:
+            membership = Membership.objects.select_related(
+                "plan",
+            ).get(pk=membership_id)
+        except (Membership.DoesNotExist, ValueError, TypeError):
+            raise ValidationError("Абонемент не знайдено.")
+
+        if (
+            booking.membership_id is not None
+            and booking.membership_id != membership.pk
+        ):
+            raise ValidationError(
+                "У бронюванні вже зазначено інший абонемент."
+            )
+
+        if membership.user_id != booking.user_id:
+            raise ValidationError(
+                "Абонемент належить іншому користувачу."
+            )
+
+        if membership.status != Membership.Status.ACTIVE:
+            raise ValidationError("Абонемент скасовано.")
+
+        if (
+            booking.starts_at < membership.valid_from
+            or booking.ends_at > membership.valid_until
+        ):
+            raise ValidationError(
+                "Строк дії абонемента не покриває "
+                "весь період бронювання."
+            )
+
+        membership.full_clean()
+        plan = membership.plan
+
+        if booking.session_id is not None:
+            required_scope = MembershipPlan.ServiceScope.SESSIONS
+            sport_type_id = booking.session.section.sport_type_id
+            required_uses = 1
+        else:
+            required_scope = MembershipPlan.ServiceScope.HALLS
+            sport_type_id = booking.hall.sport_type_id
+
+            duration = booking.ends_at - booking.starts_at
+            whole_hours, remainder = divmod(
+                duration,
+                timedelta(hours=1),
+            )
+            required_uses = whole_hours + (1 if remainder else 0)
+
+        if plan.service_scope not in {
+            required_scope,
+            MembershipPlan.ServiceScope.BOTH,
+        }:
+            raise ValidationError(
+                "Тариф абонемента не покриває цей вид послуги."
+            )
+
+        if (
+            plan.sport_type_id is not None
+            and plan.sport_type_id != sport_type_id
+        ):
+            raise ValidationError(
+                "Абонемент не поширюється на цей вид спорту."
+            )
+
+        if membership.remaining_visits is not None:
+            updated = Membership.objects.filter(
+                pk=membership.pk,
+                remaining_visits__gte=required_uses,
+            ).update(
+                remaining_visits=F("remaining_visits") - required_uses,
+            )
+
+            if updated != 1:
+                raise ValidationError(
+                    "В абонементі недостатньо використань."
+                )
+
+        booking.membership = membership
