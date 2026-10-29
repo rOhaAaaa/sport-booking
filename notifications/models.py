@@ -126,6 +126,14 @@ class Notification(models.Model):
                 ),
                 name="notification_at_most_one_link",
             ),
+            models.UniqueConstraint(
+                fields=["booking"],
+                condition=models.Q(
+                    kind="reminder",
+                    booking__isnull=False,
+                ),
+                name="unique_booking_reminder",
+            ),
         ]
 
     def clean(self):
