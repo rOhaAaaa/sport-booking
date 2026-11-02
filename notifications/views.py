@@ -81,4 +81,4 @@ class OfferViewSet(viewsets.ReadOnlyModelViewSet):
     def get_queryset(self):
         return OfferService.available_for_user(
             self.request.user,
-        )   
+        )
