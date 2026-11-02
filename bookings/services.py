@@ -274,3 +274,110 @@ class BookingConfirmationService:
                 )
 
         booking.membership = membership
+
+class BookingCheckoutService:
+    @staticmethod
+    def confirm(
+        user,
+        booking_id,
+        settlement,
+        membership_id=None,
+        payment_successful=None,
+    ):
+        if (
+            not user.is_authenticated
+            or not user.is_active
+            or user.pk is None
+        ):
+            raise ValidationError(
+                "Потрібно увійти в активний обліковий запис."
+            )
+
+        if settlement not in {"payment", "membership", "free"}:
+            raise ValidationError(
+                "Непідтримуваний спосіб підтвердження."
+            )
+
+        if settlement == "membership":
+            if membership_id is None:
+                raise ValidationError(
+                    "Потрібно вибрати абонемент."
+                )
+        elif membership_id is not None:
+            raise ValidationError(
+                "Абонемент передається лише "
+                "для способу membership."
+            )
+
+        if settlement == "payment":
+            if not isinstance(payment_successful, bool):
+                raise ValidationError(
+                    "Потрібно вказати результат імітації оплати."
+                )
+        elif payment_successful is not None:
+            raise ValidationError(
+                "Результат оплати передається лише "
+                "для способу payment."
+            )
+
+        with transaction.atomic():
+            try:
+                booking = (
+                    Booking.objects.select_for_update()
+                    .get(pk=booking_id, user=user)
+                )
+            except (Booking.DoesNotExist, ValueError, TypeError):
+                raise ValidationError(
+                    "Власне бронювання не знайдено."
+                )
+
+            if booking.status == Booking.Status.CONFIRMED:
+                return booking
+
+            if booking.status == Booking.Status.CANCELLED:
+                raise ValidationError(
+                    "Скасоване бронювання не можна підтвердити."
+                )
+
+            if booking.starts_at <= timezone.now():
+                raise ValidationError(
+                    "Час початку бронювання вже настав."
+                )
+
+            if settlement == "payment":
+                if not payment_successful:
+                    raise ValidationError(
+                        "Імітація оплати завершилася невдало. "
+                        "Бронювання не підтверджено."
+                    )
+
+                if booking.total_price <= 0:
+                    raise ValidationError(
+                        "Безкоштовна послуга підтверджується "
+                        "способом free."
+                    )
+
+                if booking.membership_id is not None:
+                    raise ValidationError(
+                        "Для цього бронювання вже "
+                        "зазначено абонемент."
+                    )
+
+                successful_payment = booking.payments.filter(
+                    status=Payment.Status.SUCCESS,
+                ).first()
+
+                if successful_payment is None:
+                    payment = Payment(
+                        booking=booking,
+                        amount=booking.total_price,
+                        status=Payment.Status.SUCCESS,
+                    )
+                    payment.full_clean()
+                    payment.save()
+
+            return BookingConfirmationService().confirm(
+                booking_id=booking.pk,
+                settlement=settlement,
+                membership_id=membership_id,
+            )

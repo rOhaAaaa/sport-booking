@@ -12,8 +12,9 @@ from .serializers import (
     BookingSerializer,
     HallBookingCreateSerializer,
     SessionBookingCreateSerializer,
+    BookingConfirmationSerializer,
 )
-from .services import BookingService
+from .services import BookingCheckoutService, BookingService
 
 
 class BookingViewSet(
@@ -43,6 +44,8 @@ class BookingViewSet(
             return HallBookingCreateSerializer
         if self.action == "create_session":
             return SessionBookingCreateSerializer
+        if self.action == "confirm":
+            return BookingConfirmationSerializer
         return BookingSerializer
 
     def booking_response(self, booking):
@@ -102,3 +105,30 @@ class BookingViewSet(
             self.raise_service_error(error)
 
         return self.booking_response(booking)
+
+    @action(
+    detail=True,
+    methods=["post"],
+    url_path="confirm",
+    url_name="confirm",
+)
+    def confirm(self, request, pk=None):
+        booking = self.get_object()
+
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        try:
+            booking = BookingCheckoutService.confirm(
+                user=request.user,
+                booking_id=booking.pk,
+                **serializer.validated_data,
+            )
+        except DjangoValidationError as error:
+            self.raise_service_error(error)
+
+        result = BookingSerializer(
+            booking,
+            context=self.get_serializer_context(),
+        )
+        return Response(result.data)

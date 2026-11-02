@@ -1,10 +1,14 @@
 from datetime import timedelta
 from decimal import Decimal
+from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
 from django.urls import reverse
 from django.utils import timezone
 from rest_framework.test import APIClient, APITestCase
+from django.core.exceptions import (
+    ValidationError as DjangoValidationError,
+)
 
 from catalog.models import (
     Hall,
@@ -15,8 +19,16 @@ from catalog.models import (
     TrainingSession,
 )
 
-from .models import Booking
+from loyalty.models import (
+    BonusTransaction,
+    LoyaltyCard,
+    Membership,
+    MembershipPlan,
+)
+
+from .models import Booking, Payment
 from .services import BookingService
+from notifications.models import Notification
 
 
 User = get_user_model()
@@ -409,4 +421,419 @@ class BookingAPITests(APITestCase):
         self.assertEqual(
             self.own_booking.status,
             Booking.Status.PENDING,
+        )
+
+    def confirm_booking(self, data, booking=None, client=None):
+        if booking is None:
+            booking = self.own_booking
+        if client is None:
+            client = self.client
+
+        return client.post(
+            reverse(
+                "bookings:booking-confirm",
+                args=[booking.pk],
+            ),
+            data,
+            format="json",
+            **self.csrf_headers(client),
+        )
+
+    def create_membership(self, user, remaining_visits=2):
+        plan = MembershipPlan.objects.create(
+            name="Test hall membership",
+            kind=MembershipPlan.Kind.MONTHLY,
+            price=Decimal("1000.00"),
+            validity_days=30,
+            visit_limit=2,
+            service_scope=MembershipPlan.ServiceScope.HALLS,
+            sport_type=self.hall.sport_type,
+        )
+        return Membership.objects.create(
+            user=user,
+            plan=plan,
+            valid_from=timezone.now() - timedelta(days=1),
+            valid_until=self.base_time + timedelta(days=10),
+            remaining_visits=remaining_visits,
+            status=Membership.Status.ACTIVE,
+        )
+
+    def test_checkout_payment_is_not_duplicated(self):
+        data = {
+            "settlement": "payment",
+            "payment_successful": True,
+        }
+
+        for attempt in range(2):
+            with self.subTest(attempt=attempt):
+                response = self.confirm_booking(data)
+                self.assertEqual(response.status_code, 200)
+
+        self.own_booking.refresh_from_db()
+        self.assertEqual(
+            self.own_booking.status,
+            Booking.Status.CONFIRMED,
+        )
+
+        payments = Payment.objects.filter(
+            booking=self.own_booking
+        )
+        self.assertEqual(payments.count(), 1)
+        self.assertEqual(
+            payments.get().amount,
+            Decimal("400.00"),
+        )
+        self.assertEqual(
+            payments.get().status,
+            Payment.Status.SUCCESS,
+        )
+
+        bonuses = BonusTransaction.objects.filter(
+            booking=self.own_booking
+        )
+        self.assertEqual(bonuses.count(), 1)
+        self.assertEqual(bonuses.get().points, 4)
+
+        for kind in ("booking_confirmed", "bonus"):
+            self.assertEqual(
+                Notification.objects.filter(
+                    booking=self.own_booking,
+                    user=self.user,
+                    kind=kind,
+                ).count(),
+                1,
+            )
+
+    def test_checkout_failed_payment_has_no_side_effects(self):
+        response = self.confirm_booking({
+            "settlement": "payment",
+            "payment_successful": False,
+        })
+
+        self.assertEqual(response.status_code, 400)
+        self.own_booking.refresh_from_db()
+        self.assertEqual(
+            self.own_booking.status,
+            Booking.Status.PENDING,
+        )
+        self.assertFalse(
+            Payment.objects.filter(
+                booking=self.own_booking
+            ).exists()
+        )
+        self.assertFalse(
+            BonusTransaction.objects.filter(
+                booking=self.own_booking
+            ).exists()
+        )
+        self.assertFalse(
+            Notification.objects.filter(
+                booking=self.own_booking
+            ).exists()
+        )
+
+    def test_checkout_is_only_available_to_owner(self):
+        data = {
+            "settlement": "payment",
+            "payment_successful": True,
+        }
+        guest = APIClient(enforce_csrf_checks=True)
+        response = self.confirm_booking(data, client=guest)
+        self.assertEqual(response.status_code, 403)
+
+        other_client = APIClient(enforce_csrf_checks=True)
+        other_client.force_login(self.other_user)
+        response = self.confirm_booking(
+            data,
+            client=other_client,
+        )
+        self.assertEqual(response.status_code, 404)
+
+        self.own_booking.refresh_from_db()
+        self.assertEqual(
+            self.own_booking.status,
+            Booking.Status.PENDING,
+        )
+        self.assertFalse(
+            Payment.objects.filter(
+                booking=self.own_booking
+            ).exists()
+        )
+
+    def test_checkout_requires_csrf(self):
+        response = self.client.post(
+            reverse(
+                "bookings:booking-confirm",
+                args=[self.own_booking.pk],
+            ),
+            {
+                "settlement": "payment",
+                "payment_successful": True,
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 403)
+        self.assertFalse(
+            Payment.objects.filter(
+                booking=self.own_booking
+            ).exists()
+        )
+
+    def test_checkout_rejects_invalid_parameters(self):
+        cases = (
+            {},
+            {"settlement": "unknown"},
+            {"settlement": "payment"},
+            {"settlement": "membership"},
+            {
+                "settlement": "payment",
+                "payment_successful": True,
+                "membership_id": 1,
+            },
+            {
+                "settlement": "free",
+                "payment_successful": True,
+            },
+            {
+                "settlement": "free",
+                "membership_id": 1,
+            },
+        )
+
+        for data in cases:
+            with self.subTest(data=data):
+                response = self.confirm_booking(data)
+                self.assertEqual(response.status_code, 400)
+
+        self.own_booking.refresh_from_db()
+        self.assertEqual(
+            self.own_booking.status,
+            Booking.Status.PENDING,
+        )
+        self.assertFalse(
+            Payment.objects.filter(
+                booking=self.own_booking
+            ).exists()
+        )
+
+    def test_checkout_rejects_cancelled_and_past_bookings(self):
+        self.own_booking.status = Booking.Status.CANCELLED
+        self.own_booking.save(update_fields=["status"])
+
+        response = self.confirm_booking({
+            "settlement": "payment",
+            "payment_successful": True,
+        })
+        self.assertEqual(response.status_code, 400)
+
+        self.own_booking.status = Booking.Status.PENDING
+        self.own_booking.starts_at = (
+            timezone.now() - timedelta(hours=2)
+        )
+        self.own_booking.ends_at = (
+            timezone.now() - timedelta(hours=1)
+        )
+        self.own_booking.save(
+            update_fields=["status", "starts_at", "ends_at"]
+        )
+
+        response = self.confirm_booking({
+            "settlement": "payment",
+            "payment_successful": True,
+        })
+        self.assertEqual(response.status_code, 400)
+        self.assertFalse(
+            Payment.objects.filter(
+                booking=self.own_booking
+            ).exists()
+        )
+
+    def test_checkout_cannot_make_paid_booking_free(self):
+        response = self.confirm_booking({
+            "settlement": "free",
+        })
+
+        self.assertEqual(response.status_code, 400)
+        self.own_booking.refresh_from_db()
+        self.assertEqual(
+            self.own_booking.status,
+            Booking.Status.PENDING,
+        )
+        self.assertEqual(
+            self.own_booking.total_price,
+            Decimal("400.00"),
+        )
+
+    def test_checkout_confirms_free_premium_swimming(self):
+        card, _ = LoyaltyCard.objects.get_or_create(
+            user=self.user,
+        )
+        card.category = "premium"
+        card.save(update_fields=["category"])
+
+        swimming = SportType.objects.create(
+            name="Плавання"
+        )
+        pool = Hall.objects.create(
+            center=self.hall.center,
+            sport_type=swimming,
+            name="Test pool",
+            capacity=10,
+            hourly_price=Decimal("800.00"),
+        )
+        booking = BookingService.create_hall_booking(
+            user=self.user,
+            hall_id=pool.pk,
+            starts_at=self.base_time,
+            ends_at=self.base_time + timedelta(hours=1),
+        )
+        self.assertEqual(
+            booking.total_price,
+            Decimal("0.00"),
+        )
+
+        response = self.confirm_booking(
+            {"settlement": "free"},
+            booking=booking,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        booking.refresh_from_db()
+        self.assertEqual(
+            booking.status,
+            Booking.Status.CONFIRMED,
+        )
+        self.assertFalse(
+            Payment.objects.filter(booking=booking).exists()
+        )
+        self.assertFalse(
+            BonusTransaction.objects.filter(
+                booking=booking
+            ).exists()
+        )
+        self.assertEqual(
+            Notification.objects.filter(
+                booking=booking,
+                kind="booking_confirmed",
+            ).count(),
+            1,
+        )
+
+    def test_checkout_membership_is_debited_once(self):
+        membership = self.create_membership(self.user)
+        data = {
+            "settlement": "membership",
+            "membership_id": membership.pk,
+        }
+
+        for attempt in range(2):
+            with self.subTest(attempt=attempt):
+                response = self.confirm_booking(data)
+                self.assertEqual(response.status_code, 200)
+
+        membership.refresh_from_db()
+        self.own_booking.refresh_from_db()
+
+        self.assertEqual(membership.remaining_visits, 1)
+        self.assertEqual(
+            self.own_booking.membership_id,
+            membership.pk,
+        )
+        self.assertEqual(
+            self.own_booking.status,
+            Booking.Status.CONFIRMED,
+        )
+        self.assertFalse(
+            Payment.objects.filter(
+                booking=self.own_booking
+            ).exists()
+        )
+        self.assertFalse(
+            BonusTransaction.objects.filter(
+                booking=self.own_booking
+            ).exists()
+        )
+        self.assertEqual(
+            Notification.objects.filter(
+                booking=self.own_booking,
+                kind="booking_confirmed",
+            ).count(),
+            1,
+        )
+
+    def test_checkout_rejects_other_users_membership(self):
+        membership = self.create_membership(
+            self.other_user
+        )
+
+        response = self.confirm_booking({
+            "settlement": "membership",
+            "membership_id": membership.pk,
+        })
+
+        self.assertEqual(response.status_code, 400)
+        membership.refresh_from_db()
+        self.own_booking.refresh_from_db()
+        self.assertEqual(membership.remaining_visits, 2)
+        self.assertIsNone(self.own_booking.membership_id)
+        self.assertEqual(
+            self.own_booking.status,
+            Booking.Status.PENDING,
+        )
+
+    def test_checkout_rejects_exhausted_membership(self):
+        membership = self.create_membership(
+            self.user,
+            remaining_visits=0,
+        )
+
+        response = self.confirm_booking({
+            "settlement": "membership",
+            "membership_id": membership.pk,
+        })
+
+        self.assertEqual(response.status_code, 400)
+        membership.refresh_from_db()
+        self.own_booking.refresh_from_db()
+        self.assertEqual(membership.remaining_visits, 0)
+        self.assertEqual(
+            self.own_booking.status,
+            Booking.Status.PENDING,
+        )
+        self.assertIsNone(self.own_booking.membership_id)
+
+    def test_checkout_rolls_back_payment_on_confirmation_error(self):
+        with patch(
+            "bookings.services.BookingConfirmationService.confirm",
+            side_effect=DjangoValidationError(
+                "Test confirmation failure"
+            ),
+        ) as mocked_confirm:
+            response = self.confirm_booking({
+                "settlement": "payment",
+                "payment_successful": True,
+            })
+
+        mocked_confirm.assert_called_once()
+        self.assertEqual(response.status_code, 400)
+        self.own_booking.refresh_from_db()
+        self.assertEqual(
+            self.own_booking.status,
+            Booking.Status.PENDING,
+        )
+        self.assertFalse(
+            Payment.objects.filter(
+                booking=self.own_booking
+            ).exists()
+        )
+        self.assertFalse(
+            BonusTransaction.objects.filter(
+                booking=self.own_booking
+            ).exists()
+        )
+        self.assertFalse(
+            Notification.objects.filter(
+                booking=self.own_booking
+            ).exists()
         )

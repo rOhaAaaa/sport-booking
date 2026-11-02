@@ -46,3 +46,48 @@ class HallBookingCreateSerializer(serializers.Serializer):
 
 class SessionBookingCreateSerializer(serializers.Serializer):
     session_id = serializers.IntegerField(min_value=1)
+
+class BookingConfirmationSerializer(serializers.Serializer):
+    settlement = serializers.ChoiceField(
+        choices=("payment", "membership", "free"),
+    )
+    membership_id = serializers.IntegerField(
+        min_value=1,
+        required=False,
+    )
+    payment_successful = serializers.BooleanField(
+        required=False,
+    )
+
+    def validate(self, attrs):
+        settlement = attrs["settlement"]
+
+        if settlement == "membership":
+            if "membership_id" not in attrs:
+                raise serializers.ValidationError({
+                    "membership_id": "Потрібно вибрати абонемент.",
+                })
+        elif "membership_id" in attrs:
+            raise serializers.ValidationError({
+                "membership_id": (
+                    "Абонемент передається лише для "
+                    "способу membership."
+                ),
+            })
+
+        if settlement == "payment":
+            if "payment_successful" not in attrs:
+                raise serializers.ValidationError({
+                    "payment_successful": (
+                        "Вкажіть результат імітації оплати."
+                    ),
+                })
+        elif "payment_successful" in attrs:
+            raise serializers.ValidationError({
+                "payment_successful": (
+                    "Результат оплати передається лише "
+                    "для способу payment."
+                ),
+            })
+
+        return attrs
