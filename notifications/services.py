@@ -4,8 +4,10 @@ from django.db import transaction
 from django.utils import timezone
 
 from bookings.models import Booking
+from loyalty.models import LoyaltyCard
 
-from .models import Notification
+from .models import Notification, Offer
+
 
 
 class ReminderService:
@@ -61,3 +63,36 @@ class ReminderService:
                 created_count += int(created)
 
         return created_count
+
+class OfferService:
+    @staticmethod
+    def available_for_user(user):
+        if (
+            not user.is_authenticated
+            or not user.is_active
+            or user.pk is None
+        ):
+            return Offer.objects.none()
+
+        category = (
+            LoyaltyCard.objects.filter(user=user)
+            .values_list("category", flat=True)
+            .first()
+        )
+
+        if category is None:
+            category = LoyaltyCard.Category.STANDARD
+
+        now = timezone.now()
+
+        return (
+            Offer.objects.filter(
+                starts_at__lte=now,
+                ends_at__gt=now,
+                target_card_category__in=(
+                    Offer.TargetCategory.ALL,
+                    category,
+                ),
+            )
+            .order_by("-starts_at", "-pk")
+        )
