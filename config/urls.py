@@ -11,6 +11,7 @@ urlpatterns = [
     path("api/bookings/", include("bookings.urls")),
     path("api/loyalty/", include("loyalty.urls")),
     path("api/notifications/", include("notifications.urls")),
+    path("", include("web.urls")),
 ]
 
 if settings.DEBUG:

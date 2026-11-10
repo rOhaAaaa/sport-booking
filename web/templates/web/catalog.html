@@ -1,0 +1,485 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>СпортПростір — зали та заняття</title>
+    <style>
+        :root {
+            --blue: #2359d1;
+            --ink: #172339;
+            --muted: #64748b;
+            --line: #e2e8f0;
+            --background: #f5f7fb;
+        }
+
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            font: 16px/1.6 system-ui, sans-serif;
+            color: var(--ink);
+            background: var(--background);
+        }
+
+        a { color: inherit; text-decoration: none; }
+        button, select { font: inherit; }
+        button, a, select { -webkit-tap-highlight-color: transparent; }
+        :focus-visible { outline: 3px solid #86aaff; outline-offset: 3px; }
+
+        .container { width: min(1120px, calc(100% - 40px)); margin: auto; }
+        header { background: white; border-bottom: 1px solid var(--line); }
+        .navigation {
+            min-height: 78px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 24px;
+        }
+        .brand { font-size: 23px; font-weight: 800; color: var(--blue); }
+        nav { display: flex; flex-wrap: wrap; gap: 8px; }
+        nav a {
+            padding: 9px 15px;
+            border-radius: 9px;
+            color: var(--muted);
+            font-weight: 600;
+        }
+        nav a:hover, nav a.active { background: #edf3ff; color: var(--blue); }
+
+        main { padding-bottom: 60px; min-height: calc(100vh - 170px); }
+        .hero {
+            margin: 36px 0;
+            padding: 48px;
+            border-radius: 24px;
+            background: #eaf0ff;
+            position: relative;
+            overflow: hidden;
+        }
+        .hero::after {
+            content: "";
+            position: absolute;
+            width: 280px;
+            height: 280px;
+            border: 48px solid #dce6ff;
+            border-radius: 50%;
+            right: -100px;
+            top: -90px;
+            pointer-events: none;
+        }
+        .hero-content { position: relative; z-index: 1; max-width: 680px; }
+        .eyebrow {
+            color: var(--blue);
+            font-weight: 700;
+            font-size: 13px;
+            letter-spacing: 1.4px;
+            text-transform: uppercase;
+        }
+        h1 { font-size: clamp(30px, 4vw, 46px); line-height: 1.15; margin: 14px 0; }
+        .hero p { color: #52627b; max-width: 560px; margin-bottom: 24px; }
+        .button {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 11px 19px;
+            border-radius: 10px;
+            border: 0;
+            background: var(--blue);
+            color: white;
+            font-weight: 650;
+            cursor: pointer;
+        }
+        .button:hover { background: #1948b0; }
+        .section-heading {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            margin: 32px 0 18px;
+        }
+        h2 { font-size: 25px; margin: 0; }
+        .section-link { color: var(--blue); font-weight: 650; }
+
+        .filters {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: flex-end;
+            gap: 16px;
+            background: white;
+            padding: 20px;
+            border: 1px solid var(--line);
+            border-radius: 14px;
+            margin-bottom: 24px;
+        }
+        .filter { flex: 1; min-width: 170px; }
+        label { display: block; font-size: 13px; font-weight: 650; margin-bottom: 6px; }
+        select {
+            width: 100%;
+            padding: 10px;
+            background: white;
+            color: var(--ink);
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+        }
+        .reset {
+            padding: 10px 16px;
+            background: #edf2fa;
+            border: 0;
+            border-radius: 8px;
+            color: var(--ink);
+            cursor: pointer;
+        }
+        .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+        .card {
+            background: white;
+            border: 1px solid var(--line);
+            border-radius: 16px;
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+        }
+        .badge {
+            background: #edf3ff;
+            color: var(--blue);
+            padding: 4px 10px;
+            border-radius: 7px;
+            font-size: 12px;
+            font-weight: 700;
+        }
+        .card h3 { font-size: 21px; line-height: 1.3; margin: 16px 0 10px; }
+        .details { color: var(--muted); font-size: 14px; margin: 4px 0; }
+        .price {
+            width: 100%;
+            margin-top: auto;
+            padding-top: 20px;
+            font-size: 22px;
+            font-weight: 750;
+        }
+        .price small { font-size: 13px; font-weight: 400; color: var(--muted); }
+        .empty {
+            padding: 28px;
+            border: 1px dashed #cbd5e1;
+            border-radius: 14px;
+            color: var(--muted);
+            grid-column: 1 / -1;
+        }
+        .notice {
+            padding: 18px;
+            background: #fff1f0;
+            color: #9f2922;
+            border-radius: 12px;
+            margin-top: 24px;
+        }
+        .notice button { margin-left: 12px; }
+        [hidden] { display: none !important; }
+        footer { border-top: 1px solid var(--line); padding: 24px 0; color: var(--muted); font-size: 13px; }
+
+        @media (max-width: 900px) {
+            .grid { grid-template-columns: repeat(2, 1fr); }
+        }
+        @media (max-width: 600px) {
+            .navigation { align-items: flex-start; flex-direction: column; padding: 18px 0; gap: 12px; }
+            nav { gap: 2px; }
+            nav a { padding: 7px 10px; font-size: 14px; }
+            .hero { padding: 28px; margin-top: 24px; }
+            .grid { grid-template-columns: 1fr; }
+            .section-heading { align-items: flex-start; }
+            .section-link { font-size: 14px; }
+        }
+    </style>
+</head>
+<body data-page="{{ page }}">
+<header>
+    <div class="container navigation">
+        <a class="brand" href="{% url 'web:home' %}">СпортПростір<span aria-hidden="true">.</span></a>
+        <nav aria-label="Головна навігація">
+            <a href="{% url 'web:home' %}" {% if page == "home" %}class="active" aria-current="page"{% endif %}>Головна</a>
+            <a href="{% url 'web:halls' %}" {% if page == "halls" %}class="active" aria-current="page"{% endif %}>Спортивні зали</a>
+            <a href="{% url 'web:schedule' %}" {% if page == "schedule" %}class="active" aria-current="page"{% endif %}>Розклад занять</a>
+        </nav>
+    </div>
+</header>
+
+<main class="container">
+    <section class="hero">
+        <div class="hero-content">
+            <span class="eyebrow">Рух починається тут</span>
+            {% if page == "home" %}
+                <h1>Знайдіть свій простір для спорту</h1>
+                <p>Переглядайте спортивні зали та обирайте заняття за видом спорту, рівнем підготовки й віком.</p>
+                <a class="button" href="{% url 'web:schedule' %}">Переглянути розклад</a>
+            {% elif page == "halls" %}
+                <h1>Спортивні зали</h1>
+                <p>Оберіть зал для тренування. Перегляньте спортивний центр, місткість і погодинну вартість оренди.</p>
+            {% else %}
+                <h1>Знайдіть своє наступне заняття</h1>
+                <p>Майбутні заняття з актуального розкладу: секція, тренер, місце та час проведення.</p>
+            {% endif %}
+        </div>
+    </section>
+
+    <div id="error" class="notice" role="alert" hidden>
+        Не вдалося завантажити каталог. Перевірте підключення та спробуйте ще раз.
+        <button class="reset" id="retry" type="button">Повторити</button>
+    </div>
+    <p id="loading" role="status">Завантажуємо каталог…</p>
+
+    {% if page != "home" %}
+    <form class="filters" id="filters">
+        <div class="filter">
+            <label for="sport">Вид спорту</label>
+            <select id="sport">
+                <option value="">Усі види спорту</option>
+            </select>
+        </div>
+        {% if page == "schedule" %}
+        <div class="filter">
+            <label for="skill">Рівень підготовки</label>
+            <select id="skill">
+                <option value="">Будь-який рівень</option>
+                <option value="beginner">Початковий</option>
+                <option value="intermediate">Середній</option>
+                <option value="advanced">Високий</option>
+            </select>
+        </div>
+        <div class="filter">
+            <label for="age">Вікова категорія секції</label>
+            <select id="age">
+                <option value="">Усі категорії</option>
+                <option value="children">Діти</option>
+                <option value="teens">Підлітки</option>
+                <option value="adults">Дорослі</option>
+                <option value="all">Усі вікові категорії</option>
+            </select>
+        </div>
+        {% endif %}
+        <button class="reset" type="reset">Скинути</button>
+    </form>
+    {% endif %}
+
+    {% if page != "schedule" %}
+    <section aria-labelledby="halls-title">
+        <div class="section-heading">
+            <h2 id="halls-title">Зали для тренувань</h2>
+            {% if page == "home" %}
+            <a class="section-link" href="{% url 'web:halls' %}">Усі зали →</a>
+            {% endif %}
+        </div>
+        <div id="halls" class="grid" aria-live="polite"></div>
+    </section>
+    {% endif %}
+
+    {% if page != "halls" %}
+    <section aria-labelledby="sessions-title">
+        <div class="section-heading">
+            <h2 id="sessions-title">Найближчі заняття</h2>
+            {% if page == "home" %}
+            <a class="section-link" href="{% url 'web:schedule' %}">Увесь розклад →</a>
+            {% endif %}
+        </div>
+        <div id="sessions" class="grid" aria-live="polite"></div>
+    </section>
+    {% endif %}
+</main>
+
+<footer>
+    <div class="container">СпортПростір · Онлайн-сервіс бронювання спортивних залів та секцій</div>
+</footer>
+
+<script>
+    const page = document.body.dataset.page;
+    const money = new Intl.NumberFormat("uk-UA", {
+        style: "currency",
+        currency: "UAH",
+        maximumFractionDigits: 2,
+    });
+    const dateFormatter = new Intl.DateTimeFormat("uk-UA", {
+        day: "numeric",
+        month: "long",
+        timeZone: "Europe/Kyiv",
+    });
+    const timeFormatter = new Intl.DateTimeFormat("uk-UA", {
+        hour: "2-digit",
+        minute: "2-digit",
+        timeZone: "Europe/Kyiv",
+    });
+
+    let catalog = null;
+
+    function element(tag, className, text) {
+        const node = document.createElement(tag);
+        if (className) node.className = className;
+        if (text !== undefined) node.textContent = text;
+        return node;
+    }
+
+    async function getAll(url) {
+        const records = [];
+        let next = url;
+
+        while (next) {
+            const response = await fetch(next, {
+                headers: {Accept: "application/json"},
+            });
+            if (!response.ok) throw new Error("Catalog request failed");
+
+            const data = await response.json();
+            if (Array.isArray(data)) {
+                records.push(...data);
+                next = null;
+            } else if (Array.isArray(data.results)) {
+                records.push(...data.results);
+                next = data.next;
+            } else {
+                throw new Error("Unexpected catalog response");
+            }
+        }
+        return records;
+    }
+
+    function price(amount, unit) {
+        const node = element("div", "price", money.format(Number(amount)));
+        node.append(element("small", "", " " + unit));
+        return node;
+    }
+
+    function hallCard(hall) {
+        const card = element("article", "card");
+        card.append(
+            element("span", "badge", hall.sport_type_name),
+            element("h3", "", hall.name),
+            element("p", "details", hall.center_name),
+            element("p", "details", "Місткість: " + hall.capacity + " осіб"),
+            price(hall.hourly_price, "/ година"),
+        );
+        return card;
+    }
+
+    function sessionCard(session) {
+        const section = catalog.sections.get(session.section);
+        const start = new Date(session.starts_at);
+        const end = new Date(session.ends_at);
+        const card = element("article", "card");
+
+        card.append(
+            element("span", "badge", session.sport_type_name),
+            element("h3", "", session.section_name),
+            element(
+                "p",
+                "details",
+                dateFormatter.format(start) + " · "
+                + timeFormatter.format(start) + "–" + timeFormatter.format(end),
+            ),
+            element("p", "details", "Зал: " + session.hall_name),
+            element("p", "details", "Тренер: " + session.trainer_name),
+        );
+
+        if (section) {
+            card.append(element(
+                "p",
+                "details",
+                section.skill_level_display + " · " + section.age_category_display,
+            ));
+        }
+
+        card.append(
+            element("p", "details", "Місткість заняття: " + session.capacity + " осіб"),
+            price(session.price, "/ заняття"),
+        );
+        return card;
+    }
+
+    function draw(containerId, records, builder, emptyText) {
+        const container = document.getElementById(containerId);
+        if (!container) return;
+
+        container.replaceChildren();
+        if (!records.length) {
+            container.append(element("p", "empty", emptyText));
+            return;
+        }
+        records.forEach(record => container.append(builder(record)));
+    }
+
+    function render() {
+        if (!catalog) return;
+
+        const sport = document.getElementById("sport")?.value || "";
+        const skill = document.getElementById("skill")?.value || "";
+        const age = document.getElementById("age")?.value || "";
+
+        let halls = catalog.halls.filter(
+            hall => !sport || String(hall.sport_type) === sport,
+        );
+
+        let sessions = catalog.sessions.filter(session => {
+            const section = catalog.sections.get(session.section);
+            return new Date(session.starts_at).getTime() > Date.now()
+                && (!sport || String(session.sport_type) === sport)
+                && (!skill || section?.skill_level === skill)
+                && (!age || section?.age_category === age);
+        });
+
+        sessions.sort((a, b) => new Date(a.starts_at) - new Date(b.starts_at));
+
+        if (page === "home") {
+            halls = halls.slice(0, 3);
+            sessions = sessions.slice(0, 3);
+        }
+
+        draw("halls", halls, hallCard, "За вибраними умовами залів не знайдено.");
+        draw(
+            "sessions",
+            sessions,
+            sessionCard,
+            "За вибраними умовами майбутніх занять немає. Спробуйте змінити фільтри.",
+        );
+    }
+
+    async function loadCatalog() {
+        document.getElementById("loading").hidden = false;
+        document.getElementById("error").hidden = true;
+
+        try {
+            const [sports, halls, sessions, sections] = await Promise.all([
+                getAll("/api/catalog/sport-types/"),
+                getAll("/api/catalog/halls/"),
+                getAll("/api/catalog/sessions/"),
+                getAll("/api/catalog/sections/"),
+            ]);
+
+            catalog = {
+                halls,
+                sessions,
+                sections: new Map(sections.map(section => [section.id, section])),
+            };
+
+            const sportSelect = document.getElementById("sport");
+            if (sportSelect) {
+                const previous = sportSelect.value;
+                sportSelect.replaceChildren(
+                    new Option("Усі види спорту", ""),
+                    ...sports.map(sport => new Option(sport.name, sport.id)),
+                );
+                sportSelect.value = previous;
+            }
+            render();
+        } catch (error) {
+            document.getElementById("error").hidden = false;
+        } finally {
+            document.getElementById("loading").hidden = true;
+        }
+    }
+
+    const filters = document.getElementById("filters");
+    if (filters) {
+        filters.addEventListener("submit", event => event.preventDefault());
+        filters.addEventListener("change", render);
+        filters.addEventListener("reset", () => setTimeout(render, 0));
+    }
+
+    document.getElementById("retry").addEventListener("click", loadCatalog);
+    loadCatalog();
+</script>
+</body>
+</html>
