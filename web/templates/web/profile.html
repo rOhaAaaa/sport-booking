@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Мій профіль — СпортПростір</title>
+
+    <style>
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            background: #f5f7fb;
+            color: #172339;
+            font: 16px/1.6 system-ui, sans-serif;
+        }
+
+        .profile-header {
+            background: white;
+            border-bottom: 1px solid #dfe6f1;
+        }
+
+        .profile-nav {
+            max-width: 1120px;
+            margin: auto;
+            padding: 22px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+
+        .brand {
+            color: #2359d1;
+            font-size: 26px;
+            font-weight: 800;
+            text-decoration: none;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+
+        a { color: #2359d1; }
+
+        .nav-links a { text-decoration: none; }
+
+        main {
+            max-width: 800px;
+            margin: 40px auto;
+            padding: 0 20px;
+        }
+
+        h1 {
+            margin: 0 0 6px;
+            font-size: 32px;
+        }
+
+        .intro {
+            color: #64748b;
+            margin: 0 0 24px;
+        }
+
+        .profile-card {
+            background: white;
+            border: 1px solid #dfe6f1;
+            border-radius: 20px;
+            padding: 32px;
+        }
+
+        .photo-row {
+            display: flex;
+            align-items: center;
+            gap: 24px;
+            margin-bottom: 24px;
+        }
+
+        .avatar {
+            flex-shrink: 0;
+            width: 104px;
+            height: 104px;
+            border-radius: 50%;
+            background: #edf3ff;
+            overflow: hidden;
+            display: grid;
+            place-items: center;
+            color: #2359d1;
+            font-weight: 800;
+            font-size: 34px;
+        }
+
+        .avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .photo-field { min-width: 0; }
+
+        .fields {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 18px;
+        }
+
+        .field { min-width: 0; }
+
+        .wide { grid-column: 1 / -1; }
+
+        label {
+            display: block;
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 6px;
+        }
+
+        input, textarea {
+            width: 100%;
+            min-width: 0;
+            padding: 12px;
+            border: 1px solid #cbd5e1;
+            border-radius: 9px;
+            background: white;
+            color: #172339;
+            font: inherit;
+        }
+
+        input:disabled { background: #f5f7fb; }
+
+        input[type="file"] {
+            padding: 8px;
+            font-size: 14px;
+        }
+
+        textarea {
+            min-height: 120px;
+            resize: vertical;
+        }
+
+        input:focus-visible,
+        textarea:focus-visible,
+        button:focus-visible,
+        a:focus-visible {
+            outline: 3px solid #b9ceff;
+            outline-offset: 2px;
+        }
+
+        [aria-invalid="true"] { border-color: #b42338; }
+
+        .hint {
+            color: #64748b;
+            font-size: 13px;
+            margin: 6px 0 0;
+        }
+
+        .field-error {
+            color: #a51d2d;
+            font-size: 13px;
+            margin: 6px 0 0;
+            white-space: pre-line;
+        }
+
+        .notice {
+            background: #fff0f1;
+            color: #a51d2d;
+            padding: 12px 14px;
+            border-radius: 9px;
+            margin-bottom: 20px;
+            white-space: pre-line;
+        }
+
+        .notice.success {
+            background: #eaf8ef;
+            color: #17653a;
+        }
+
+        .submit {
+            margin-top: 24px;
+            background: #2359d1;
+            color: white;
+            border: 0;
+            border-radius: 9px;
+            padding: 13px 22px;
+            font: inherit;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        .submit:disabled {
+            opacity: .65;
+            cursor: wait;
+        }
+
+        @media (max-width: 600px) {
+            main { margin: 24px auto; }
+            .profile-card { padding: 24px 20px; }
+            .fields { grid-template-columns: 1fr; }
+            .photo-row { align-items: flex-start; flex-direction: column; }
+            .submit { width: 100%; }
+        }
+    </style>
+</head>
+
+<body>
+    {% include "web/account_bar.html" %}
+
+    <header class="profile-header">
+        <nav class="profile-nav" aria-label="Основна навігація">
+            <a class="brand" href="{% url 'web:home' %}">СпортПростір.</a>
+            <div class="nav-links">
+                <a href="{% url 'web:halls' %}">Спортивні зали</a>
+                <a href="{% url 'web:schedule' %}">Розклад занять</a>
+            </div>
+        </nav>
+    </header>
+
+    <main>
+        <h1>Мій профіль</h1>
+        <p class="intro">
+            Оновлюйте контактні дані, фотографію та спортивні вподобання.
+        </p>
+
+        <section class="profile-card" aria-label="Редагування профілю">
+            <p id="profile-loading" role="status">Завантаження профілю…</p>
+            <div id="profile-notice" class="notice"
+                 role="alert" hidden></div>
+
+            <form id="profile-form" hidden>
+                {% csrf_token %}
+
+                <div class="photo-row">
+                    <div id="avatar" class="avatar"
+                         aria-label="Фото профілю"></div>
+
+                    <div class="photo-field">
+                        <label for="photo">Фото профілю</label>
+                        <input id="photo" name="photo" type="file"
+                               accept="image/*"
+                               aria-describedby="photo-hint error-photo">
+                        <p id="photo-hint" class="hint">
+                            Якщо не вибрати нове фото, поточне залишиться.
+                        </p>
+                        <p id="error-photo" class="field-error" hidden></p>
+                    </div>
+                </div>
+
+                <div class="fields">
+                    <div class="field wide">
+                        <label for="username">Ім’я користувача</label>
+                        <input id="username" disabled>
+                        <p class="hint">Ім’я користувача змінити не можна.</p>
+                    </div>
+
+                    <div class="field">
+                        <label for="first_name">Ім’я</label>
+                        <input id="first_name" name="first_name"
+                               maxlength="150" autocomplete="given-name"
+                               aria-describedby="error-first_name">
+                        <p id="error-first_name"
+                           class="field-error" hidden></p>
+                    </div>
+
+                    <div class="field">
+                        <label for="last_name">Прізвище</label>
+                        <input id="last_name" name="last_name"
+                               maxlength="150" autocomplete="family-name"
+                               aria-describedby="error-last_name">
+                        <p id="error-last_name"
+                           class="field-error" hidden></p>
+                    </div>
+
+                    <div class="field">
+                        <label for="email">Електронна пошта</label>
+                        <input id="email" name="email" type="email"
+                               required maxlength="254" autocomplete="email"
+                               aria-describedby="error-email">
+                        <p id="error-email" class="field-error" hidden></p>
+                    </div>
+
+                    <div class="field">
+                        <label for="phone">Телефон</label>
+                        <input id="phone" name="phone" type="tel"
+                               maxlength="25" autocomplete="tel"
+                               aria-describedby="error-phone">
+                        <p id="error-phone" class="field-error" hidden></p>
+                    </div>
+
+                    <div class="field wide">
+                        <label for="preferences">Спортивні вподобання</label>
+                        <textarea id="preferences" name="preferences"
+                                  placeholder="Наприклад: йога, плавання, вечірні заняття"
+                                  aria-describedby="error-preferences"></textarea>
+                        <p id="error-preferences"
+                           class="field-error" hidden></p>
+                    </div>
+                </div>
+
+                <button id="profile-save" class="submit" type="submit">
+                    Зберегти зміни
+                </button>
+            </form>
+
+            <noscript>
+                Для роботи з профілем увімкніть JavaScript у браузері.
+            </noscript>
+        </section>
+    </main>
+
+    <script>
+    (() => {
+        const endpoint = "{% url 'accounts:profile' %}";
+        const form = document.getElementById("profile-form");
+        const button = document.getElementById("profile-save");
+        const notice = document.getElementById("profile-notice");
+        const loading = document.getElementById("profile-loading");
+        const editable = [
+            "first_name", "last_name", "email", "phone", "preferences"
+        ];
+
+        function showNotice(message, success = false) {
+            notice.textContent = message;
+            notice.classList.toggle("success", success);
+            notice.hidden = false;
+        }
+
+        function clearErrors() {
+            notice.hidden = true;
+
+            form.querySelectorAll(".field-error").forEach(item => {
+                item.hidden = true;
+                item.textContent = "";
+            });
+
+            form.querySelectorAll("[aria-invalid]").forEach(item => {
+                item.removeAttribute("aria-invalid");
+            });
+        }
+
+        function messages(value) {
+            if (Array.isArray(value)) {
+                return value.map(messages).join("\n");
+            }
+            if (value !== null && typeof value === "object") {
+                return Object.values(value).map(messages).join("\n");
+            }
+            return String(value);
+        }
+
+        function showErrors(data) {
+            const general = [];
+            let firstInvalid = null;
+
+            for (const [name, value] of Object.entries(data)) {
+                const input = form.elements.namedItem(name);
+                const errorBox = document.getElementById("error-" + name);
+
+                if (input && errorBox) {
+                    input.setAttribute("aria-invalid", "true");
+                    errorBox.textContent = messages(value);
+                    errorBox.hidden = false;
+                    firstInvalid ??= input;
+                } else {
+                    general.push(messages(value));
+                }
+            }
+
+            showNotice(
+                general.length
+                    ? general.join("\n")
+                    : "Перевірте позначені поля."
+            );
+
+            firstInvalid?.focus();
+        }
+
+        function fillProfile(data) {
+            document.getElementById("username").value = data.username;
+
+            for (const name of editable) {
+                form.elements.namedItem(name).value = data[name] ?? "";
+            }
+
+            const avatar = document.getElementById("avatar");
+            avatar.replaceChildren();
+
+            if (data.photo) {
+                const image = document.createElement("img");
+                image.src = data.photo;
+                image.alt = "Фото користувача";
+                avatar.append(image);
+            } else {
+                avatar.textContent = (
+                    data.first_name || data.username || "?"
+                ).slice(0, 1).toUpperCase();
+            }
+
+            const greeting = document.querySelector(".account-bar strong");
+            if (greeting) {
+                greeting.textContent = data.first_name || data.username;
+            }
+        }
+
+        async function loadProfile() {
+            try {
+                const response = await fetch(endpoint, {
+                    credentials: "same-origin",
+                    cache: "no-store",
+                    headers: {"Accept": "application/json"}
+                });
+
+                if (response.status === 401 || response.status === 403) {
+                    window.location.replace("{% url 'web:login' %}");
+                    return;
+                }
+
+                if (!response.ok) {
+                    throw new Error(
+                        "Не вдалося завантажити профіль. Оновіть сторінку."
+                    );
+                }
+
+                fillProfile(await response.json());
+                form.hidden = false;
+            } catch (error) {
+                showNotice(
+                    error instanceof TypeError
+                        ? "Немає зв’язку із сервером. Оновіть сторінку."
+                        : error.message
+                );
+            } finally {
+                loading.hidden = true;
+            }
+        }
+
+        form.addEventListener("submit", async event => {
+            event.preventDefault();
+            clearErrors();
+            button.disabled = true;
+            button.textContent = "Збереження…";
+
+            try {
+                const tokenResponse = await fetch(
+                    "{% url 'accounts:csrf' %}",
+                    {
+                        credentials: "same-origin",
+                        cache: "no-store",
+                        headers: {"Accept": "application/json"}
+                    }
+                );
+
+                if (!tokenResponse.ok) {
+                    throw new Error(
+                        "Не вдалося підготувати запит. Спробуйте ще раз."
+                    );
+                }
+
+                const tokenData = await tokenResponse.json();
+                const payload = new FormData();
+
+                for (const name of editable) {
+                    payload.append(name, form.elements.namedItem(name).value);
+                }
+
+                const photo = document.getElementById("photo").files[0];
+                if (photo) {
+                    payload.append("photo", photo);
+                }
+
+                const response = await fetch(endpoint, {
+                    method: "PATCH",
+                    credentials: "same-origin",
+                    headers: {
+                        "Accept": "application/json",
+                        "X-CSRFToken": tokenData.csrfToken
+                    },
+                    body: payload
+                });
+
+                const contentType = response.headers.get("content-type") || "";
+                const data = contentType.includes("application/json")
+                    ? await response.json()
+                    : null;
+
+                if (!response.ok) {
+                    if (response.status === 400 && data) {
+                        showErrors(data);
+                        return;
+                    }
+
+                    if (response.status === 401 || response.status === 403) {
+                        throw new Error(
+                            "Не вдалося підтвердити сеанс. " +
+                            "Оновіть сторінку та за потреби увійдіть знову."
+                        );
+                    }
+
+                    throw new Error(
+                        "Не вдалося зберегти профіль. Спробуйте пізніше."
+                    );
+                }
+
+                fillProfile(data);
+                document.getElementById("photo").value = "";
+                showNotice("Профіль успішно оновлено.", true);
+            } catch (error) {
+                showNotice(
+                    error instanceof TypeError
+                        ? "Немає зв’язку із сервером. Спробуйте ще раз."
+                        : error.message
+                );
+            } finally {
+                button.disabled = false;
+                button.textContent = "Зберегти зміни";
+            }
+        });
+
+        loadProfile();
+    })();
+    </script>
+</body>
+</html>
