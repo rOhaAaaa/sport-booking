@@ -1,0 +1,127 @@
+<style>
+    .account-bar {
+        background: #edf3ff;
+        color: #172339;
+        font: 14px/1.5 system-ui, sans-serif;
+    }
+
+    .account-bar-inner {
+        max-width: 1120px;
+        margin: 0 auto;
+        padding: 10px 20px;
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 16px;
+        flex-wrap: wrap;
+    }
+
+    .account-bar a,
+    .account-bar button {
+        color: #2359d1;
+        font: inherit;
+        font-weight: 600;
+    }
+
+    .account-bar a {
+        text-decoration: none;
+    }
+
+    .account-bar button {
+        background: transparent;
+        border: 0;
+        padding: 0;
+        cursor: pointer;
+    }
+
+    .account-bar button:disabled {
+        opacity: .6;
+        cursor: wait;
+    }
+
+    .account-bar a:focus-visible,
+    .account-bar button:focus-visible {
+        outline: 2px solid #2359d1;
+        outline-offset: 4px;
+    }
+
+    .account-bar-error {
+        color: #a51d2d;
+        margin: 0;
+    }
+</style>
+
+<div class="account-bar">
+    <div class="account-bar-inner">
+        {% if user.is_authenticated %}
+            <span>
+                Вітаємо,
+                <strong>{{ user.first_name|default:user.username }}</strong>!
+            </span>
+            <button type="button" id="account-logout">Вийти</button>
+            <p id="account-error" class="account-bar-error"
+               role="alert" hidden></p>
+        {% else %}
+            <a href="{% url 'web:login' %}">Увійти</a>
+            <a href="{% url 'web:register' %}">Зареєструватися</a>
+        {% endif %}
+    </div>
+</div>
+
+{% if user.is_authenticated %}
+<script>
+(() => {
+    const button = document.getElementById("account-logout");
+    const errorBox = document.getElementById("account-error");
+
+    button.addEventListener("click", async () => {
+        button.disabled = true;
+        errorBox.hidden = true;
+
+        try {
+            const tokenResponse = await fetch(
+                "{% url 'accounts:csrf' %}",
+                {
+                    credentials: "same-origin",
+                    cache: "no-store",
+                    headers: {"Accept": "application/json"}
+                }
+            );
+
+            if (!tokenResponse.ok) {
+                throw new Error("Не вдалося підготувати вихід. Спробуйте ще раз.");
+            }
+
+            const tokenData = await tokenResponse.json();
+
+            const response = await fetch(
+                "{% url 'accounts:logout' %}",
+                {
+                    method: "POST",
+                    credentials: "same-origin",
+                    headers: {
+                        "Accept": "application/json",
+                        "X-CSRFToken": tokenData.csrfToken
+                    }
+                }
+            );
+
+            if (!response.ok) {
+                throw new Error(
+                    "Не вдалося вийти. Оновіть сторінку та повторіть спробу."
+                );
+            }
+
+            window.location.replace("{% url 'web:home' %}");
+        } catch (error) {
+            errorBox.textContent = error instanceof TypeError
+                ? "Немає зв’язку із сервером. Спробуйте ще раз."
+                : error.message;
+            errorBox.hidden = false;
+        } finally {
+            button.disabled = false;
+        }
+    });
+})();
+</script>
+{% endif %}

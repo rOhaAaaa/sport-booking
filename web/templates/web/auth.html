@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>
+        {% if mode == "register" %}Реєстрація{% else %}Вхід{% endif %}
+        — СпортПростір
+    </title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            background: #f5f7fb;
+            color: #172339;
+            font: 16px/1.6 system-ui, sans-serif;
+        }
+
+        .auth-header {
+            padding: 24px 20px;
+            text-align: center;
+            background: white;
+            border-bottom: 1px solid #dfe6f1;
+        }
+
+        .brand {
+            color: #2359d1;
+            font-size: 26px;
+            font-weight: 800;
+            text-decoration: none;
+        }
+
+        main {
+            max-width: 540px;
+            margin: 48px auto;
+            padding: 0 20px;
+        }
+
+        .auth-card {
+            background: white;
+            border: 1px solid #dfe6f1;
+            border-radius: 20px;
+            padding: 32px;
+        }
+
+        h1 {
+            margin: 0 0 8px;
+            font-size: 30px;
+        }
+
+        .intro,
+        .hint {
+            color: #64748b;
+        }
+
+        .intro {
+            margin: 0 0 24px;
+        }
+
+        .hint {
+            margin: 6px 0 0;
+            font-size: 13px;
+        }
+
+        .field {
+            margin-bottom: 18px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 6px;
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        input {
+            width: 100%;
+            min-width: 0;
+            padding: 12px;
+            border: 1px solid #cbd5e1;
+            border-radius: 9px;
+            color: #172339;
+            background: white;
+            font: inherit;
+        }
+
+        input:focus-visible,
+        button:focus-visible,
+        a:focus-visible {
+            outline: 3px solid #b9ceff;
+            outline-offset: 2px;
+        }
+
+        input[aria-invalid="true"] {
+            border-color: #b42338;
+        }
+
+        .field-error {
+            color: #a51d2d;
+            font-size: 13px;
+            margin: 6px 0 0;
+            white-space: pre-line;
+        }
+
+        .notice {
+            padding: 12px 14px;
+            margin-bottom: 20px;
+            border-radius: 9px;
+            background: #fff0f1;
+            color: #a51d2d;
+            white-space: pre-line;
+        }
+
+        .notice.success {
+            background: #eaf8ef;
+            color: #17653a;
+        }
+
+        .submit {
+            width: 100%;
+            border: 0;
+            border-radius: 9px;
+            background: #2359d1;
+            color: white;
+            padding: 13px 16px;
+            font: inherit;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        .submit:disabled {
+            opacity: .65;
+            cursor: wait;
+        }
+
+        .switch {
+            margin: 22px 0 0;
+            text-align: center;
+        }
+
+        a {
+            color: #2359d1;
+        }
+
+        @media (max-width: 600px) {
+            main {
+                margin: 24px auto;
+            }
+
+            .auth-card {
+                padding: 24px 20px;
+            }
+
+            h1 {
+                font-size: 26px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    {% include "web/account_bar.html" %}
+
+    <header class="auth-header">
+        <a class="brand" href="{% url 'web:home' %}">СпортПростір.</a>
+    </header>
+
+    <main>
+        <section class="auth-card" aria-labelledby="auth-heading">
+            <h1 id="auth-heading">
+                {% if mode == "register" %}
+                    Створити обліковий запис
+                {% else %}
+                    Вхід до облікового запису
+                {% endif %}
+            </h1>
+
+            <p class="intro">
+                {% if mode == "register" %}
+                    Зареєструйтеся, щоб бронювати зали та заняття.
+                {% else %}
+                    Введіть ім’я користувача та пароль.
+                {% endif %}
+            </p>
+
+            <div id="auth-notice" class="notice"
+                 role="alert" hidden></div>
+
+            <form id="auth-form" method="post"
+                  action="{% if mode == 'register' %}{% url 'accounts:register' %}{% else %}{% url 'accounts:login' %}{% endif %}">
+                {% csrf_token %}
+
+                <div class="field">
+                    <label for="username">Ім’я користувача</label>
+                    <input id="username" name="username" required
+                           maxlength="150" autocomplete="username"
+                           autocapitalize="none" spellcheck="false"
+                           aria-describedby="error-username">
+                    <p id="error-username" class="field-error" hidden></p>
+                </div>
+
+                {% if mode == "register" %}
+                    <div class="field">
+                        <label for="email">Електронна пошта</label>
+                        <input id="email" name="email" type="email"
+                               maxlength="254" autocomplete="email"
+                               required aria-describedby="error-email">
+                        <p id="error-email" class="field-error" hidden></p>
+                    </div>
+
+                    <div class="field">
+                        <label for="first_name">Ім’я — необов’язково</label>
+                        <input id="first_name" name="first_name"
+                               maxlength="150" autocomplete="given-name"
+                               aria-describedby="error-first_name">
+                        <p id="error-first_name"
+                           class="field-error" hidden></p>
+                    </div>
+
+                    <div class="field">
+                        <label for="last_name">Прізвище — необов’язково</label>
+                        <input id="last_name" name="last_name"
+                               maxlength="150" autocomplete="family-name"
+                               aria-describedby="error-last_name">
+                        <p id="error-last_name"
+                           class="field-error" hidden></p>
+                    </div>
+                {% endif %}
+
+                <div class="field">
+                    <label for="password">Пароль</label>
+                    <input id="password" name="password" type="password"
+                           required
+                           autocomplete="{% if mode == 'register' %}new-password{% else %}current-password{% endif %}"
+                           aria-describedby="error-password{% if mode == 'register' %} password-hint{% endif %}">
+                    <p id="error-password" class="field-error" hidden></p>
+
+                    {% if mode == "register" %}
+                        <p id="password-hint" class="hint">
+                            Використайте щонайменше 8 символів.
+                            Уникайте поширених паролів і паролів,
+                            що складаються лише з цифр.
+                        </p>
+                    {% endif %}
+                </div>
+
+                {% if mode == "register" %}
+                    <div class="field">
+                        <label for="password_confirm">Повторіть пароль</label>
+                        <input id="password_confirm" name="password_confirm"
+                               type="password" required
+                               autocomplete="new-password"
+                               aria-describedby="error-password_confirm">
+                        <p id="error-password_confirm"
+                           class="field-error" hidden></p>
+                    </div>
+                {% endif %}
+
+                <button id="auth-submit" class="submit" type="submit">
+                    {% if mode == "register" %}
+                        Зареєструватися
+                    {% else %}
+                        Увійти
+                    {% endif %}
+                </button>
+            </form>
+
+            <p class="switch">
+                {% if mode == "register" %}
+                    Уже маєте обліковий запис?
+                    <a href="{% url 'web:login' %}">Увійти</a>
+                {% else %}
+                    Ще немає облікового запису?
+                    <a href="{% url 'web:register' %}">Зареєструватися</a>
+                {% endif %}
+            </p>
+
+            <noscript>
+                <p>Для роботи форми увімкніть JavaScript у браузері.</p>
+            </noscript>
+        </section>
+    </main>
+
+    <script>
+    (() => {
+        const isRegistration = "{{ mode }}" === "register";
+        const form = document.getElementById("auth-form");
+        const button = document.getElementById("auth-submit");
+        const notice = document.getElementById("auth-notice");
+        const buttonLabel = button.textContent.trim();
+
+        function showNotice(message, success = false) {
+            notice.textContent = message;
+            notice.classList.toggle("success", success);
+            notice.hidden = false;
+        }
+
+        function clearErrors() {
+            notice.hidden = true;
+
+            form.querySelectorAll(".field-error").forEach(item => {
+                item.textContent = "";
+                item.hidden = true;
+            });
+
+            form.querySelectorAll("input").forEach(input => {
+                input.removeAttribute("aria-invalid");
+            });
+        }
+
+        function messages(value) {
+            if (Array.isArray(value)) {
+                return value.map(messages).join("\n");
+            }
+
+            if (value !== null && typeof value === "object") {
+                return Object.values(value).map(messages).join("\n");
+            }
+
+            return String(value);
+        }
+
+        function showValidationErrors(data) {
+            let firstInvalid = null;
+            const general = [];
+
+            for (const [name, value] of Object.entries(data)) {
+                const input = form.elements.namedItem(name);
+                const errorBox = document.getElementById("error-" + name);
+
+                if (input && errorBox) {
+                    input.setAttribute("aria-invalid", "true");
+                    errorBox.textContent = messages(value);
+                    errorBox.hidden = false;
+                    firstInvalid ??= input;
+                } else {
+                    general.push(messages(value));
+                }
+            }
+
+            showNotice(
+                general.length
+                    ? general.join("\n")
+                    : "Перевірте позначені поля."
+            );
+
+            firstInvalid?.focus();
+        }
+
+        if (
+            !isRegistration &&
+            new URLSearchParams(window.location.search).get("registered") === "1"
+        ) {
+            showNotice(
+                "Обліковий запис створено. Тепер увійдіть зі своїм паролем.",
+                true
+            );
+        }
+
+        form.addEventListener("submit", async event => {
+            event.preventDefault();
+            clearErrors();
+
+            button.disabled = true;
+            button.textContent = "Зачекайте…";
+
+            try {
+                const tokenResponse = await fetch(
+                    "{% url 'accounts:csrf' %}",
+                    {
+                        credentials: "same-origin",
+                        cache: "no-store",
+                        headers: {"Accept": "application/json"}
+                    }
+                );
+
+                if (!tokenResponse.ok) {
+                    throw new Error(
+                        "Не вдалося підготувати запит. Спробуйте ще раз."
+                    );
+                }
+
+                const tokenData = await tokenResponse.json();
+                const values = new FormData(form);
+                const payload = {};
+
+                for (const [name, value] of values.entries()) {
+                    if (name !== "csrfmiddlewaretoken") {
+                        payload[name] = value;
+                    }
+                }
+
+                const response = await fetch(form.action, {
+                    method: "POST",
+                    credentials: "same-origin",
+                    headers: {
+                        "Accept": "application/json",
+                        "Content-Type": "application/json",
+                        "X-CSRFToken": tokenData.csrfToken
+                    },
+                    body: JSON.stringify(payload)
+                });
+
+                const contentType = response.headers.get("content-type") || "";
+                const data = contentType.includes("application/json")
+                    ? await response.json()
+                    : null;
+
+                if (!response.ok) {
+                    if (response.status === 400 && data) {
+                        showValidationErrors(data);
+                        return;
+                    }
+
+                    if (response.status === 403) {
+                        throw new Error(
+                            "Сеанс перевірки безпеки змінився. " +
+                            "Оновіть сторінку та повторіть спробу."
+                        );
+                    }
+
+                    throw new Error(
+                        "Сервер не зміг виконати запит. Спробуйте пізніше."
+                    );
+                }
+
+                if (isRegistration) {
+                    window.location.replace(
+                        "{% url 'web:login' %}?registered=1"
+                    );
+                } else {
+                    window.location.replace("{% url 'web:home' %}");
+                }
+            } catch (error) {
+                showNotice(
+                    error instanceof TypeError
+                        ? "Немає зв’язку із сервером. Спробуйте ще раз."
+                        : error.message
+                );
+            } finally {
+                button.disabled = false;
+                button.textContent = buttonLabel;
+            }
+        });
+    })();
+    </script>
+</body>
+</html>
