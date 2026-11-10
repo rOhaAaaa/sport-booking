@@ -59,6 +59,7 @@
                 <strong>{{ user.first_name|default:user.username }}</strong>!
             </span>
             <a href="{% url 'web:profile' %}">Мій профіль</a>
+            <a href="{% url 'web:bookings' %}">Мої бронювання</a>
             <button type="button" id="account-logout">Вийти</button>
             <p id="account-error" class="account-bar-error"
                role="alert" hidden></p>

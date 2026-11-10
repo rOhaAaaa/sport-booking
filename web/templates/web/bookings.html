@@ -1,0 +1,721 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Мої бронювання — СпортПростір</title>
+
+    <style>
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            background: #f5f7fb;
+            color: #172339;
+            font: 16px/1.6 system-ui, sans-serif;
+        }
+
+        header {
+            background: white;
+            border-bottom: 1px solid #dfe6f1;
+        }
+
+        .navigation {
+            max-width: 1120px;
+            margin: auto;
+            padding: 22px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+
+        .brand {
+            color: #2359d1;
+            font-size: 26px;
+            font-weight: 800;
+            text-decoration: none;
+        }
+
+        .links {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+
+        a { color: #2359d1; }
+        .links a { text-decoration: none; }
+
+        main {
+            max-width: 1120px;
+            margin: 40px auto;
+            padding: 0 20px;
+        }
+
+        h1 { margin: 0 0 8px; }
+        h2 { margin: 0 0 18px; font-size: 23px; }
+        h3 { margin: 12px 0; font-size: 20px; }
+
+        .intro, .hint { color: #64748b; }
+        .intro { margin: 0 0 24px; }
+        .hint { font-size: 13px; }
+
+        .forms {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 24px;
+            margin-bottom: 40px;
+        }
+
+        .panel, .booking-card {
+            background: white;
+            border: 1px solid #dfe6f1;
+            border-radius: 18px;
+            padding: 26px;
+            min-width: 0;
+        }
+
+        .field { margin-bottom: 18px; }
+
+        label {
+            display: block;
+            margin-bottom: 6px;
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        input, select {
+            width: 100%;
+            min-width: 0;
+            border: 1px solid #cbd5e1;
+            border-radius: 9px;
+            padding: 12px;
+            background: white;
+            color: #172339;
+            font: inherit;
+        }
+
+        button {
+            border: 0;
+            border-radius: 9px;
+            padding: 12px 18px;
+            background: #2359d1;
+            color: white;
+            font: inherit;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        button:disabled {
+            opacity: .6;
+            cursor: wait;
+        }
+
+        .secondary {
+            background: #edf3ff;
+            color: #2359d1;
+        }
+
+        input:focus-visible, select:focus-visible,
+        button:focus-visible, a:focus-visible {
+            outline: 3px solid #b9ceff;
+            outline-offset: 2px;
+        }
+
+        .notice {
+            margin-bottom: 20px;
+            padding: 14px;
+            border-radius: 9px;
+            background: #fff0f1;
+            color: #a51d2d;
+            white-space: pre-line;
+        }
+
+        .notice.success {
+            background: #eaf8ef;
+            color: #17653a;
+        }
+
+        .history-heading {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 16px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .history-heading h2 { margin: 0; }
+
+        .history {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 20px;
+        }
+
+        .booking-card p {
+            margin: 6px 0;
+            overflow-wrap: anywhere;
+        }
+
+        .badge {
+            display: inline-block;
+            background: #edf3ff;
+            color: #2359d1;
+            border-radius: 7px;
+            padding: 4px 10px;
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .badge.confirmed {
+            background: #eaf8ef;
+            color: #17653a;
+        }
+
+        .badge.cancelled {
+            background: #f1f3f6;
+            color: #64748b;
+        }
+
+        .amount {
+            font-size: 21px;
+            font-weight: 800;
+        }
+
+        .empty {
+            grid-column: 1 / -1;
+            padding: 24px;
+            border: 1px dashed #cbd5e1;
+            border-radius: 12px;
+            color: #64748b;
+        }
+
+        @media (max-width: 760px) {
+            .forms, .history { grid-template-columns: 1fr; }
+            main { margin: 24px auto; }
+            .panel, .booking-card { padding: 22px; }
+        }
+    </style>
+</head>
+
+<body>
+    {% include "web/account_bar.html" %}
+
+    <header>
+        <nav class="navigation" aria-label="Основна навігація">
+            <a class="brand" href="{% url 'web:home' %}">СпортПростір.</a>
+            <div class="links">
+                <a href="{% url 'web:halls' %}">Спортивні зали</a>
+                <a href="{% url 'web:schedule' %}">Розклад занять</a>
+                <a href="{% url 'web:profile' %}">Мій профіль</a>
+            </div>
+        </nav>
+    </header>
+
+    <main>
+        <h1>Мої бронювання</h1>
+        <p class="intro">
+            Забронюйте зал або місце на занятті та переглядайте історію.
+            Нове бронювання очікуватиме підтвердження.
+        </p>
+
+        <div id="booking-notice" class="notice" role="alert" hidden></div>
+        <p id="loading" role="status">Завантаження даних…</p>
+
+        <div class="forms">
+            <section class="panel" aria-labelledby="hall-heading">
+                <h2 id="hall-heading">Оренда залу</h2>
+
+                <form id="hall-form">
+                    <div class="field">
+                        <label for="hall">Спортивний зал</label>
+                        <select id="hall" required disabled>
+                            <option value="">Оберіть зал</option>
+                        </select>
+                        <p id="hall-info" class="hint"></p>
+                    </div>
+
+                    <div class="field">
+                        <label for="starts-at">Початок оренди</label>
+                        <input id="starts-at" type="datetime-local"
+                               required aria-describedby="timezone-note">
+                    </div>
+
+                    <div class="field">
+                        <label for="ends-at">Завершення оренди</label>
+                        <input id="ends-at" type="datetime-local"
+                               required aria-describedby="timezone-note">
+                    </div>
+
+                    <p id="timezone-note" class="hint"></p>
+                    <p class="hint">
+                        Підсумкову вартість із вашими пільгами
+                        сервер визначить під час створення бронювання.
+                    </p>
+
+                    <button id="hall-submit" type="submit" disabled>
+                        Забронювати зал
+                    </button>
+                </form>
+            </section>
+
+            <section class="panel" aria-labelledby="session-heading">
+                <h2 id="session-heading">Запис на заняття</h2>
+
+                <form id="session-form">
+                    <div class="field">
+                        <label for="session">Майбутнє заняття</label>
+                        <select id="session" required disabled>
+                            <option value="">Оберіть заняття</option>
+                        </select>
+                    </div>
+
+                    <p id="session-info" class="hint"></p>
+                    <p class="hint">
+                        Дату та час визначено розкладом.
+                        Наявність місць перевіряється під час бронювання.
+                    </p>
+
+                    <button id="session-submit" type="submit" disabled>
+                        Записатися на заняття
+                    </button>
+                </form>
+            </section>
+        </div>
+
+        <section aria-labelledby="history-heading">
+            <div class="history-heading">
+                <h2 id="history-heading">Історія бронювань</h2>
+                <button id="refresh-history" class="secondary"
+                        type="button" disabled>
+                    Оновити історію
+                </button>
+            </div>
+
+            <p id="history-status" role="status"></p>
+            <div id="history" class="history"></div>
+        </section>
+
+        <noscript>
+            Для роботи з бронюваннями увімкніть JavaScript у браузері.
+        </noscript>
+    </main>
+
+    <script>
+    (() => {
+        const hallSelect = document.getElementById("hall");
+        const sessionSelect = document.getElementById("session");
+        const hallButton = document.getElementById("hall-submit");
+        const sessionButton = document.getElementById("session-submit");
+        const refreshButton = document.getElementById("refresh-history");
+        const notice = document.getElementById("booking-notice");
+        const history = document.getElementById("history");
+        const historyStatus = document.getElementById("history-status");
+
+        const money = new Intl.NumberFormat("uk-UA", {
+            style: "currency",
+            currency: "UAH"
+        });
+
+        const dateTime = new Intl.DateTimeFormat("uk-UA", {
+            day: "2-digit",
+            month: "2-digit",
+            year: "numeric",
+            hour: "2-digit",
+            minute: "2-digit",
+            timeZone: "Europe/Kyiv"
+        });
+
+        let halls = [];
+        let sessions = [];
+        let creating = false;
+
+        document.getElementById("timezone-note").textContent =
+            "Вводьте час у часовому поясі вашого пристрою: " +
+            Intl.DateTimeFormat().resolvedOptions().timeZone +
+            ". В історії час відображається за Києвом.";
+
+        function element(tag, className, text) {
+            const item = document.createElement(tag);
+            if (className) item.className = className;
+            if (text !== undefined) item.textContent = text;
+            return item;
+        }
+
+        function showNotice(message, success = false) {
+            notice.textContent = message;
+            notice.classList.toggle("success", success);
+            notice.hidden = false;
+        }
+
+        function messages(value) {
+            if (Array.isArray(value)) {
+                return value.map(messages).join("\n");
+            }
+            if (value !== null && typeof value === "object") {
+                return Object.values(value).map(messages).join("\n");
+            }
+            return String(value);
+        }
+
+        async function getAll(url) {
+            const records = [];
+
+            while (url) {
+                const response = await fetch(url, {
+                    credentials: "same-origin",
+                    cache: "no-store",
+                    headers: {"Accept": "application/json"}
+                });
+
+                if (response.status === 401 || response.status === 403) {
+                    throw new Error(
+                        "Сеанс завершився. Оновіть сторінку та увійдіть знову."
+                    );
+                }
+
+                if (!response.ok) {
+                    throw new Error(
+                        "Не вдалося завантажити дані. Оновіть сторінку."
+                    );
+                }
+
+                const data = await response.json();
+
+                if (Array.isArray(data)) {
+                    records.push(...data);
+                    url = null;
+                } else if (Array.isArray(data.results)) {
+                    records.push(...data.results);
+                    url = data.next;
+                } else {
+                    throw new Error("Сервер повернув неочікуваний формат даних.");
+                }
+            }
+
+            return records;
+        }
+
+        function bookingCard(booking) {
+            const card = element("article", "booking-card");
+            const badge = element(
+                "span",
+                "badge " + booking.status,
+                booking.status_display
+            );
+
+            card.append(
+                badge,
+                element(
+                    "h3",
+                    "",
+                    "№" + booking.id + " · " +
+                    (booking.hall_name || booking.session_name || "Бронювання")
+                ),
+                element(
+                    "p",
+                    "hint",
+                    booking.hall ? "Оренда залу" : "Місце на занятті"
+                ),
+                element(
+                    "p",
+                    "",
+                    "Початок: " +
+                    dateTime.format(new Date(booking.starts_at))
+                ),
+                element(
+                    "p",
+                    "",
+                    "Завершення: " +
+                    dateTime.format(new Date(booking.ends_at))
+                ),
+                element(
+                    "p",
+                    "amount",
+                    money.format(Number(booking.total_price))
+                )
+            );
+
+            if (booking.membership) {
+                card.append(
+                    element(
+                        "p",
+                        "hint",
+                        "Використаний абонемент №" + booking.membership
+                    )
+                );
+            }
+
+            return card;
+        }
+
+        async function loadHistory() {
+            refreshButton.disabled = true;
+            historyStatus.textContent = "Оновлення історії…";
+
+            try {
+                const bookings = await getAll(
+                    "{% url 'bookings:booking-list' %}"
+                );
+
+                history.replaceChildren();
+
+                if (bookings.length) {
+                    history.append(...bookings.map(bookingCard));
+                } else {
+                    history.append(
+                        element(
+                            "p",
+                            "empty",
+                            "У вас ще немає бронювань. Скористайтеся формами вище."
+                        )
+                    );
+                }
+
+                historyStatus.textContent = "";
+            } catch (error) {
+                historyStatus.textContent =
+                    "Не вдалося оновити історію. " +
+                    "Перевірте з’єднання або увійдіть знову.";
+            } finally {
+                refreshButton.disabled = false;
+            }
+        }
+
+        function updateHallInfo() {
+            const hall = halls.find(
+                item => String(item.id) === hallSelect.value
+            );
+
+            document.getElementById("hall-info").textContent = hall
+                ? hall.center_name + " · Місткість: " + hall.capacity +
+                  " осіб · " + money.format(Number(hall.hourly_price)) +
+                  " за годину до застосування пільг."
+                : "";
+        }
+
+        function updateSessionInfo() {
+            const session = sessions.find(
+                item => String(item.id) === sessionSelect.value
+            );
+
+            document.getElementById("session-info").textContent = session
+                ? "Зал: " + session.hall_name +
+                  " · Тренер: " + session.trainer_name +
+                  " · Ціна до застосування пільг: " +
+                  money.format(Number(session.price)) + "."
+                : "";
+        }
+
+        async function createBooking(url, payload) {
+            if (creating) return;
+
+            creating = true;
+            hallButton.disabled = true;
+            sessionButton.disabled = true;
+            notice.hidden = true;
+
+            let sent = false;
+
+            try {
+                const tokenResponse = await fetch(
+                    "{% url 'accounts:csrf' %}",
+                    {
+                        credentials: "same-origin",
+                        cache: "no-store",
+                        headers: {"Accept": "application/json"}
+                    }
+                );
+
+                if (!tokenResponse.ok) {
+                    throw new Error(
+                        "Не вдалося підготувати запит. Спробуйте ще раз."
+                    );
+                }
+
+                const token = await tokenResponse.json();
+                sent = true;
+
+                const response = await fetch(url, {
+                    method: "POST",
+                    credentials: "same-origin",
+                    headers: {
+                        "Accept": "application/json",
+                        "Content-Type": "application/json",
+                        "X-CSRFToken": token.csrfToken
+                    },
+                    body: JSON.stringify(payload)
+                });
+
+                const contentType = response.headers.get("content-type") || "";
+                const data = contentType.includes("application/json")
+                    ? await response.json()
+                    : null;
+
+                if (!response.ok) {
+                    if (response.status === 400 && data) {
+                        showNotice(messages(data));
+                        return;
+                    }
+
+                    if (response.status === 401 || response.status === 403) {
+                        throw new Error(
+                            "Не вдалося підтвердити сеанс. " +
+                            "Оновіть сторінку та за потреби увійдіть знову."
+                        );
+                    }
+
+                    throw new Error(
+                        "Не вдалося отримати результат операції. " +
+                        "Оновіть історію перед повторною спробою."
+                    );
+                }
+
+                showNotice(
+                    "Бронювання №" + data.id + " створено. " +
+                    "Статус: " + data.status_display + ". " +
+                    "Вартість: " + money.format(Number(data.total_price)) + ".",
+                    true
+                );
+
+                await loadHistory();
+            } catch (error) {
+                showNotice(
+                    error instanceof TypeError
+                        ? sent
+                            ? "З’єднання перервано. Оновіть історію: " +
+                              "бронювання могло бути створене. " +
+                              "Перевірте її перед повторною спробою."
+                            : "Немає зв’язку із сервером. Спробуйте ще раз."
+                        : error.message
+                );
+            } finally {
+                creating = false;
+                hallButton.disabled = !halls.length;
+                sessionButton.disabled = !sessions.length;
+            }
+        }
+
+        document.getElementById("hall-form").addEventListener(
+            "submit",
+            event => {
+                event.preventDefault();
+
+                const start = new Date(
+                    document.getElementById("starts-at").value
+                );
+                const end = new Date(
+                    document.getElementById("ends-at").value
+                );
+
+                if (
+                    Number.isNaN(start.getTime()) ||
+                    Number.isNaN(end.getTime())
+                ) {
+                    showNotice("Укажіть коректні дату й час.");
+                    return;
+                }
+
+                if (start <= new Date()) {
+                    showNotice("Початок оренди має бути в майбутньому.");
+                    return;
+                }
+
+                if (end <= start) {
+                    showNotice("Завершення має бути пізніше за початок.");
+                    return;
+                }
+
+                createBooking(
+                    "{% url 'bookings:booking-create-hall' %}",
+                    {
+                        hall_id: Number(hallSelect.value),
+                        starts_at: start.toISOString(),
+                        ends_at: end.toISOString()
+                    }
+                );
+            }
+        );
+
+        document.getElementById("session-form").addEventListener(
+            "submit",
+            event => {
+                event.preventDefault();
+
+                createBooking(
+                    "{% url 'bookings:booking-create-session' %}",
+                    {session_id: Number(sessionSelect.value)}
+                );
+            }
+        );
+
+        hallSelect.addEventListener("change", updateHallInfo);
+        sessionSelect.addEventListener("change", updateSessionInfo);
+        refreshButton.addEventListener("click", loadHistory);
+
+        async function initialize() {
+            try {
+                const result = await Promise.all([
+                    getAll("/api/catalog/halls/"),
+                    getAll("/api/catalog/sessions/")
+                ]);
+
+                halls = result[0];
+                sessions = result[1]
+                    .filter(item => new Date(item.starts_at) > new Date())
+                    .sort(
+                        (a, b) =>
+                            new Date(a.starts_at) - new Date(b.starts_at)
+                    );
+
+                for (const hall of halls) {
+                    const option = element(
+                        "option",
+                        "",
+                        hall.center_name + " — " + hall.name
+                    );
+                    option.value = hall.id;
+                    hallSelect.append(option);
+                }
+
+                for (const session of sessions) {
+                    const option = element(
+                        "option",
+                        "",
+                        session.section_name + " · " +
+                        dateTime.format(new Date(session.starts_at)) +
+                        " · " + session.hall_name
+                    );
+                    option.value = session.id;
+                    sessionSelect.append(option);
+                }
+
+                hallSelect.disabled = !halls.length;
+                sessionSelect.disabled = !sessions.length;
+                hallButton.disabled = !halls.length;
+                sessionButton.disabled = !sessions.length;
+
+                if (!sessions.length) {
+                    document.getElementById("session-info").textContent =
+                        "У розкладі поки немає майбутніх занять.";
+                }
+            } catch (error) {
+                showNotice(
+                    error instanceof TypeError
+                        ? "Немає зв’язку із сервером. Оновіть сторінку."
+                        : error.message
+                );
+            } finally {
+                document.getElementById("loading").hidden = true;
+            }
+
+            await loadHistory();
+        }
+
+        initialize();
+    })();
+    </script>
+</body>
+</html>

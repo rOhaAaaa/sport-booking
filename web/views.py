@@ -40,3 +40,10 @@ def register_page(request):
 @require_GET
 def profile_page(request):
     return render(request, "web/profile.html")
+
+
+@never_cache
+@login_required(login_url="web:login")
+@require_GET
+def bookings_page(request):
+    return render(request, "web/bookings.html")
