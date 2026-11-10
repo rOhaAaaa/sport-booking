@@ -4,6 +4,7 @@ from django.core.exceptions import ValidationError
 from django.core.validators import MinValueValidator
 from django.db import models
 from django.db.models import F, Q
+from django.apps import apps
 
 
 class SportsCenter(models.Model):
@@ -193,11 +194,20 @@ class TrainingSession(models.Model):
         super().clean()
         errors = {}
 
-        if self.starts_at and self.ends_at:
-            if self.ends_at <= self.starts_at:
-                errors["ends_at"] = (
-                    "Завершення має бути пізніше за початок."
-                )
+        valid_period = (
+            self.starts_at is not None
+            and self.ends_at is not None
+            and self.ends_at > self.starts_at
+        )
+
+        if (
+            self.starts_at is not None
+            and self.ends_at is not None
+            and self.ends_at <= self.starts_at
+        ):
+            errors["ends_at"] = (
+                "Завершення має бути пізніше за початок."
+            )
 
         if self.hall_id and self.capacity is not None:
             if self.capacity > self.hall.capacity:
@@ -206,10 +216,108 @@ class TrainingSession(models.Model):
                 )
 
         if self.hall_id and self.section_id:
-            if self.hall.sport_type_id != self.section.sport_type_id:
+            if (
+                self.hall.sport_type_id
+                != self.section.sport_type_id
+            ):
                 errors["hall"] = (
-                    "Вид спорту залу має відповідати виду спорту секції."
+                    "Вид спорту залу має відповідати "
+                    "виду спорту секції."
                 )
+
+        Booking = apps.get_model("bookings", "Booking")
+        active_statuses = (
+            Booking.Status.PENDING,
+            Booking.Status.CONFIRMED,
+        )
+
+        if valid_period:
+            overlapping_sessions = (
+                TrainingSession.objects.filter(
+                    starts_at__lt=self.ends_at,
+                    ends_at__gt=self.starts_at,
+                )
+                .exclude(pk=self.pk)
+            )
+
+            if self.hall_id:
+                if overlapping_sessions.filter(
+                    hall_id=self.hall_id,
+                ).exists():
+                    errors["hall"] = (
+                        "У цьому залі вже заплановано "
+                        "інше заняття на вибраний час."
+                    )
+
+                if Booking.objects.filter(
+                    hall_id=self.hall_id,
+                    status__in=active_statuses,
+                    starts_at__lt=self.ends_at,
+                    ends_at__gt=self.starts_at,
+                ).exists():
+                    errors["starts_at"] = (
+                        "Вибраний час перетинається "
+                        "з активною орендою цього залу."
+                    )
+
+            if self.trainer_id:
+                if overlapping_sessions.filter(
+                    trainer_id=self.trainer_id,
+                ).exists():
+                    errors["trainer"] = (
+                        "Тренер уже проводить інше заняття "
+                        "на вибраний час."
+                    )
+
+        if not self._state.adding and self.pk is not None:
+            bookings = Booking.objects.filter(
+                session_id=self.pk,
+            )
+
+            active_count = bookings.filter(
+                status__in=active_statuses,
+            ).count()
+
+            if (
+                self.capacity is not None
+                and self.capacity < active_count
+            ):
+                errors["capacity"] = (
+                    "Кількість місць не може бути меншою "
+                    "за кількість активних бронювань "
+                    f"({active_count})."
+                )
+
+            if bookings.exists():
+                original = (
+                    TrainingSession.objects.filter(pk=self.pk)
+                    .values(
+                        "section_id",
+                        "hall_id",
+                        "starts_at",
+                        "ends_at",
+                    )
+                    .first()
+                )
+
+                if original is not None:
+                    protected_fields = {
+                        "section_id": "section",
+                        "hall_id": "hall",
+                        "starts_at": "starts_at",
+                        "ends_at": "ends_at",
+                    }
+
+                    for attribute, field in protected_fields.items():
+                        if (
+                            getattr(self, attribute)
+                            != original[attribute]
+                        ):
+                            errors[field] = (
+                                "На це заняття вже є бронювання. "
+                                "Змінювати секцію, зал або час "
+                                "такого заняття не можна."
+                            )
 
         if errors:
             raise ValidationError(errors)
