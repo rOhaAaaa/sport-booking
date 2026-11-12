@@ -47,3 +47,13 @@ def profile_page(request):
 @require_GET
 def bookings_page(request):
     return render(request, "web/bookings.html")
+
+@never_cache
+@login_required(login_url="web:login")
+@require_GET
+def booking_checkout_page(request, booking_id):
+    return render(
+        request,
+        "web/checkout.html",
+        {"booking_id": booking_id},
+    )

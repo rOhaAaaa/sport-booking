@@ -1,0 +1,539 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Підтвердження бронювання — СпортПростір</title>
+
+    <style>
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            background: #f5f7fb;
+            color: #172339;
+            font: 16px/1.6 system-ui, sans-serif;
+        }
+
+        main {
+            max-width: 720px;
+            margin: 36px auto;
+            padding: 0 20px;
+        }
+
+        a { color: #2359d1; }
+
+        h1 { font-size: 30px; margin: 24px 0 8px; }
+
+        .intro, .hint { color: #64748b; }
+
+        .card {
+            background: white;
+            border: 1px solid #dfe6f1;
+            border-radius: 18px;
+            padding: 28px;
+            margin-top: 24px;
+        }
+
+        .card h2 { margin: 0 0 16px; font-size: 23px; }
+
+        .card p { margin: 8px 0; }
+
+        .amount { font-size: 26px; font-weight: 800; }
+
+        .field { margin-bottom: 20px; }
+
+        label {
+            display: block;
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 6px;
+        }
+
+        select {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #cbd5e1;
+            border-radius: 9px;
+            background: white;
+            color: #172339;
+            font: inherit;
+        }
+
+        button {
+            border: 0;
+            border-radius: 9px;
+            padding: 13px 20px;
+            background: #2359d1;
+            color: white;
+            font: inherit;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        button:disabled { opacity: .6; cursor: wait; }
+
+        a:focus-visible, select:focus-visible, button:focus-visible {
+            outline: 3px solid #b9ceff;
+            outline-offset: 2px;
+        }
+
+        .notice {
+            padding: 14px;
+            border-radius: 9px;
+            background: #fff0f1;
+            color: #a51d2d;
+            margin-top: 20px;
+            white-space: pre-line;
+        }
+
+        .notice.success {
+            background: #eaf8ef;
+            color: #17653a;
+        }
+
+        .hint { font-size: 14px; }
+
+        [hidden] { display: none !important; }
+
+        @media (max-width: 600px) {
+            main { margin: 24px auto; }
+            .card { padding: 22px; }
+            button { width: 100%; }
+        }
+    </style>
+</head>
+
+<body>
+    {% include "web/account_bar.html" %}
+
+    <main>
+        <a href="{% url 'web:bookings' %}">← Мої бронювання</a>
+
+        <h1>Підтвердження бронювання</h1>
+        <p class="intro">
+            Перевірте послугу й оберіть спосіб підтвердження.
+        </p>
+
+        <p id="loading" role="status">Завантаження бронювання…</p>
+        <div id="notice" class="notice" role="alert" hidden></div>
+
+        <section id="summary" class="card" hidden>
+            <h2 id="booking-title"></h2>
+            <p id="booking-start"></p>
+            <p id="booking-end"></p>
+            <p id="booking-status"></p>
+            <p id="booking-price" class="amount"></p>
+        </section>
+
+        <section id="checkout" class="card" hidden>
+            <form id="checkout-form">
+                <div class="field">
+                    <label for="settlement">Спосіб підтвердження</label>
+                    <select id="settlement" required></select>
+                </div>
+
+                <div id="payment-fields" class="field" hidden>
+                    <label for="payment-result">Результат тестової оплати</label>
+                    <select id="payment-result">
+                        <option value="success">Успішна оплата</option>
+                        <option value="failed">Невдала оплата</option>
+                    </select>
+                    <p class="hint">
+                        Навчальна імітація оплати.
+                        Реальні кошти не списуються.
+                    </p>
+                </div>
+
+                <div id="membership-fields" class="field" hidden>
+                    <label for="membership">Ваш абонемент</label>
+                    <select id="membership"></select>
+                    <p id="membership-note" class="hint"></p>
+                </div>
+
+                <p class="hint">
+                    Сервер перевірить можливість підтвердження.
+                    Для абонемента перевіряються строк дії,
+                    послуга та залишок відвідувань.
+                </p>
+
+                <button id="confirm-button" type="submit">
+                    Підтвердити бронювання
+                </button>
+            </form>
+        </section>
+    </main>
+
+    <script>
+    (() => {
+        const detailUrl =
+            "{% url 'bookings:booking-detail' pk=booking_id %}";
+        const confirmUrl =
+            "{% url 'bookings:booking-confirm' pk=booking_id %}";
+
+        const notice = document.getElementById("notice");
+        const checkout = document.getElementById("checkout");
+        const settlement = document.getElementById("settlement");
+        const membershipSelect = document.getElementById("membership");
+        const button = document.getElementById("confirm-button");
+
+        const money = new Intl.NumberFormat("uk-UA", {
+            style: "currency",
+            currency: "UAH"
+        });
+
+        const dateTime = new Intl.DateTimeFormat("uk-UA", {
+            dateStyle: "short",
+            timeStyle: "short",
+            timeZone: "Europe/Kyiv"
+        });
+
+        let booking = null;
+        let memberships = [];
+        let membershipsAvailable = true;
+
+        function showNotice(message, success = false) {
+            notice.textContent = message;
+            notice.classList.toggle("success", success);
+            notice.hidden = false;
+        }
+
+        function messages(value) {
+            if (Array.isArray(value)) {
+                return value.map(messages).join("\n");
+            }
+            if (value !== null && typeof value === "object") {
+                return Object.values(value).map(messages).join("\n");
+            }
+            return String(value);
+        }
+
+        function option(value, label) {
+            const item = document.createElement("option");
+            item.value = value;
+            item.textContent = label;
+            return item;
+        }
+
+        async function readResponse(response) {
+            const type = response.headers.get("content-type") || "";
+            return type.includes("application/json")
+                ? await response.json()
+                : null;
+        }
+
+        async function getMemberships() {
+            let url = "/api/loyalty/memberships/";
+            const result = [];
+
+            while (url) {
+                const response = await fetch(url, {
+                    credentials: "same-origin",
+                    cache: "no-store",
+                    headers: {"Accept": "application/json"}
+                });
+
+                if (!response.ok) {
+                    throw new Error("Не вдалося завантажити абонементи.");
+                }
+
+                const data = await response.json();
+
+                if (Array.isArray(data)) {
+                    result.push(...data);
+                    url = null;
+                } else if (Array.isArray(data.results)) {
+                    result.push(...data.results);
+                    url = data.next;
+                } else {
+                    throw new Error("Неочікуваний формат абонементів.");
+                }
+            }
+
+            return result;
+        }
+
+        function updateMethod() {
+            const method = settlement.value;
+
+            document.getElementById("payment-fields").hidden =
+                method !== "payment";
+            document.getElementById("membership-fields").hidden =
+                method !== "membership";
+
+            membershipSelect.required = method === "membership";
+            button.disabled =
+                !method ||
+                (method === "membership" && !membershipSelect.value);
+        }
+
+        function renderBooking() {
+            document.getElementById("summary").hidden = false;
+            document.getElementById("booking-title").textContent =
+                "№" + booking.id + " · " +
+                (booking.hall_name || booking.session_name || "Бронювання");
+
+            document.getElementById("booking-start").textContent =
+                "Початок: " + dateTime.format(new Date(booking.starts_at));
+            document.getElementById("booking-end").textContent =
+                "Завершення: " + dateTime.format(new Date(booking.ends_at));
+            document.getElementById("booking-status").textContent =
+                "Статус: " + booking.status_display;
+            document.getElementById("booking-price").textContent =
+                money.format(Number(booking.total_price));
+
+            checkout.hidden = true;
+
+            if (booking.status === "confirmed") {
+                showNotice("Це бронювання вже підтверджено.", true);
+                return;
+            }
+
+            if (booking.status !== "pending") {
+                showNotice("Скасоване бронювання підтвердити не можна.");
+                return;
+            }
+
+            if (new Date(booking.starts_at) <= new Date()) {
+                showNotice("Час початку бронювання вже настав.");
+                return;
+            }
+
+            settlement.replaceChildren();
+            membershipSelect.replaceChildren();
+
+            if (Number(booking.total_price) === 0) {
+                settlement.append(
+                    option("free", "Безкоштовна послуга")
+                );
+            } else {
+                if (!booking.membership) {
+                    settlement.append(
+                        option("payment", "Тестова оплата")
+                    );
+                }
+
+                const suitable = memberships.filter(item => {
+                    const start = new Date(item.valid_from);
+                    const end = new Date(item.valid_until);
+
+                    return item.status === "active" &&
+                        start <= new Date() &&
+                        start <= new Date(booking.starts_at) &&
+                        end >= new Date(booking.ends_at) &&
+                        (
+                            item.remaining_visits === null ||
+                            item.remaining_visits > 0
+                        ) &&
+                        (
+                            !booking.membership ||
+                            item.id === booking.membership
+                        );
+                });
+
+                if (suitable.length) {
+                    settlement.append(
+                        option("membership", "Використати абонемент")
+                    );
+
+                    for (const item of suitable) {
+                        membershipSelect.append(
+                            option(
+                                item.id,
+                                "№" + item.id + " · " + item.plan.name +
+                                " · Залишок: " +
+                                (
+                                    item.remaining_visits === null
+                                        ? "без обмеження"
+                                        : item.remaining_visits
+                                )
+                            )
+                        );
+                    }
+                }
+
+                document.getElementById("membership-note").textContent =
+                    "Показано абонементи з відповідним строком дії " +
+                    "та ненульовим або необмеженим залишком. " +
+                    "Відповідність послузі остаточно перевірить сервер.";
+            }
+
+            if (!settlement.options.length) {
+                showNotice(
+                    membershipsAvailable
+                        ? "Немає доступного способу підтвердження. " +
+                          "Перевірте використаний абонемент."
+                        : "Не вдалося завантажити абонементи. " +
+                          "Оновіть сторінку."
+                );
+                return;
+            }
+
+            checkout.hidden = false;
+            updateMethod();
+
+            if (!membershipsAvailable) {
+                showNotice(
+                    "Абонементи не завантажилися. " +
+                    "Тестова оплата доступна; " +
+                    "для використання абонемента оновіть сторінку."
+                );
+            }
+        }
+
+        document.getElementById("checkout-form").addEventListener(
+            "submit",
+            async event => {
+                event.preventDefault();
+                button.disabled = true;
+                button.textContent = "Підтвердження…";
+                notice.hidden = true;
+
+                let sent = false;
+
+                try {
+                    const tokenResponse = await fetch(
+                        "{% url 'accounts:csrf' %}",
+                        {
+                            credentials: "same-origin",
+                            cache: "no-store",
+                            headers: {"Accept": "application/json"}
+                        }
+                    );
+
+                    if (!tokenResponse.ok) {
+                        throw new Error(
+                            "Не вдалося підготувати запит. Спробуйте ще раз."
+                        );
+                    }
+
+                    const token = await tokenResponse.json();
+                    const payload = {settlement: settlement.value};
+
+                    if (payload.settlement === "payment") {
+                        payload.payment_successful =
+                            document.getElementById("payment-result").value
+                            === "success";
+                    }
+
+                    if (payload.settlement === "membership") {
+                        payload.membership_id =
+                            Number(membershipSelect.value);
+                    }
+
+                    sent = true;
+
+                    const response = await fetch(confirmUrl, {
+                        method: "POST",
+                        credentials: "same-origin",
+                        headers: {
+                            "Accept": "application/json",
+                            "Content-Type": "application/json",
+                            "X-CSRFToken": token.csrfToken
+                        },
+                        body: JSON.stringify(payload)
+                    });
+
+                    const data = await readResponse(response);
+
+                    if (!response.ok) {
+                        if (response.status === 400 && data) {
+                            showNotice(messages(data));
+                            return;
+                        }
+
+                        if (response.status === 401 || response.status === 403) {
+                            throw new Error(
+                                "Не вдалося підтвердити сеанс. " +
+                                "Оновіть сторінку та увійдіть за потреби."
+                            );
+                        }
+
+                        throw new Error(
+                            "Не вдалося отримати результат. " +
+                            "Оновіть сторінку перед повторною спробою."
+                        );
+                    }
+
+                    booking = data;
+                    renderBooking();
+                    showNotice(
+                        "Бронювання №" + booking.id +
+                        " успішно підтверджено.",
+                        true
+                    );
+                } catch (error) {
+                    showNotice(
+                        error instanceof TypeError
+                            ? sent
+                                ? "З’єднання перервано. Оновіть сторінку, " +
+                                  "щоб перевірити статус перед повторною спробою."
+                                : "Немає зв’язку із сервером. Спробуйте ще раз."
+                            : error.message
+                    );
+                } finally {
+                    button.textContent = "Підтвердити бронювання";
+                    updateMethod();
+                }
+            }
+        );
+
+        settlement.addEventListener("change", updateMethod);
+        membershipSelect.addEventListener("change", updateMethod);
+
+        async function initialize() {
+            try {
+                const response = await fetch(detailUrl, {
+                    credentials: "same-origin",
+                    cache: "no-store",
+                    headers: {"Accept": "application/json"}
+                });
+
+                if (response.status === 404) {
+                    throw new Error(
+                        "Бронювання не знайдено або воно вам не належить."
+                    );
+                }
+
+                if (response.status === 401 || response.status === 403) {
+                    window.location.replace("{% url 'web:login' %}");
+                    return;
+                }
+
+                if (!response.ok) {
+                    throw new Error(
+                        "Не вдалося завантажити бронювання. Оновіть сторінку."
+                    );
+                }
+
+                booking = await response.json();
+
+                if (
+                    booking.status === "pending" &&
+                    Number(booking.total_price) > 0 &&
+                    new Date(booking.starts_at) > new Date()
+                ) {
+                    try {
+                        memberships = await getMemberships();
+                    } catch {
+                        membershipsAvailable = false;
+                    }
+                }
+
+                renderBooking();
+            } catch (error) {
+                showNotice(
+                    error instanceof TypeError
+                        ? "Немає зв’язку із сервером. Оновіть сторінку."
+                        : error.message
+                );
+            } finally {
+                document.getElementById("loading").hidden = true;
+            }
+        }
+
+        initialize();
+    })();
+    </script>
+</body>
+</html>

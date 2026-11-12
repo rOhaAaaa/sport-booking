@@ -448,6 +448,22 @@
                 );
             }
 
+            if (
+    booking.status === "pending" &&
+    new Date(booking.starts_at) > new Date()
+) {
+    const checkoutLink = element(
+        "a",
+        "",
+        "Перейти до підтвердження →"
+    );
+
+    checkoutLink.href =
+        "{% url 'web:bookings' %}" + booking.id + "/confirm/";
+
+    card.append(checkoutLink);
+}
+
             return card;
         }
 
