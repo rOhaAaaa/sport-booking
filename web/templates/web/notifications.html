@@ -1,0 +1,765 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Сповіщення та пропозиції — СпортПростір</title>
+
+    <style>
+        :root {
+            color-scheme: light;
+            --background: #f5f7fb;
+            --surface: #ffffff;
+            --text: #172339;
+            --muted: #647898;
+            --border: #dce5f3;
+            --accent: #2359d1;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            background: var(--background);
+            color: var(--text);
+            font-family: system-ui, sans-serif;
+            line-height: 1.6;
+        }
+
+        a {
+            color: var(--accent);
+        }
+
+        .site-header {
+            background: var(--surface);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .header-inner,
+        main {
+            max-width: 1120px;
+            margin: 0 auto;
+            padding: 24px;
+        }
+
+        .header-inner,
+        .page-heading,
+        .section-heading,
+        .card-heading {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+
+        .brand {
+            color: var(--accent);
+            font-size: 25px;
+            font-weight: 800;
+            text-decoration: none;
+        }
+
+        nav {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+
+        nav a {
+            text-decoration: none;
+            font-size: 14px;
+        }
+
+        main {
+            padding-top: 32px;
+            padding-bottom: 64px;
+        }
+
+        h1,
+        h2,
+        h3,
+        p {
+            margin-top: 0;
+        }
+
+        h1 {
+            margin-bottom: 8px;
+            font-size: 30px;
+        }
+
+        h2 {
+            font-size: 22px;
+        }
+
+        h3 {
+            margin-bottom: 8px;
+            font-size: 18px;
+        }
+
+        .muted {
+            color: var(--muted);
+            font-size: 14px;
+        }
+
+        .panel,
+        .card {
+            padding: 24px;
+            border: 1px solid var(--border);
+            border-radius: 18px;
+            background: var(--surface);
+        }
+
+        .panel {
+            margin: 24px 0;
+        }
+
+        .filters {
+            display: grid;
+            grid-template-columns: 1fr 1fr auto;
+            align-items: end;
+            gap: 16px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 6px;
+            font-size: 14px;
+        }
+
+        select {
+            width: 100%;
+            min-height: 44px;
+            padding: 10px 12px;
+            border: 1px solid #c8d5e9;
+            border-radius: 9px;
+            background: white;
+            color: var(--text);
+            font: inherit;
+            font-size: 14px;
+        }
+
+        button {
+            min-height: 44px;
+            padding: 10px 16px;
+            border: 0;
+            border-radius: 9px;
+            background: var(--accent);
+            color: white;
+            font: inherit;
+            font-size: 14px;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        button.secondary {
+            background: #edf3ff;
+            color: var(--accent);
+        }
+
+        button:disabled,
+        select:disabled {
+            opacity: 0.6;
+            cursor: default;
+        }
+
+        button:focus-visible,
+        select:focus-visible,
+        a:focus-visible {
+            outline: 3px solid #9cbaff;
+            outline-offset: 3px;
+        }
+
+        .notice {
+            margin: 18px 0;
+            padding: 14px;
+            border-radius: 10px;
+            background: #fff0f2;
+            color: #a6263a;
+            white-space: pre-line;
+        }
+
+        .notice.success {
+            background: #e9f8ef;
+            color: #08785b;
+        }
+
+        [hidden] {
+            display: none !important;
+        }
+
+        .section-heading {
+            margin: 30px 0 16px;
+        }
+
+        .section-heading h2 {
+            margin: 0;
+        }
+
+        .list {
+            display: grid;
+            gap: 16px;
+        }
+
+        .offers {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .card.unread {
+            border-left: 4px solid var(--accent);
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 4px 9px;
+            border-radius: 6px;
+            background: #edf3ff;
+            color: var(--accent);
+            font-size: 12px;
+        }
+
+        .badge.read {
+            background: #f0f3f7;
+            color: #64748b;
+        }
+
+        .message {
+            margin: 16px 0;
+            white-space: pre-wrap;
+            overflow-wrap: anywhere;
+        }
+
+        .card .muted {
+            margin-bottom: 8px;
+        }
+
+        .card button {
+            margin-top: 10px;
+        }
+
+        .empty {
+            color: var(--muted);
+            padding: 16px 0;
+        }
+
+        @media (max-width: 700px) {
+            .filters,
+            .offers {
+                grid-template-columns: 1fr;
+            }
+
+            .header-inner,
+            main {
+                padding-left: 18px;
+                padding-right: 18px;
+            }
+
+            h1 {
+                font-size: 26px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    {% include "web/account_bar.html" %}
+
+    <header class="site-header">
+        <div class="header-inner">
+            <a class="brand" href="{% url 'web:home' %}">
+                СпортПростір.
+            </a>
+
+            <nav aria-label="Основна навігація">
+                <a href="{% url 'web:bookings' %}">Мої бронювання</a>
+                <a href="{% url 'web:loyalty' %}">Абонементи та бонуси</a>
+                <a href="{% url 'web:profile' %}">Мій профіль</a>
+            </nav>
+        </div>
+    </header>
+
+    <main>
+        <div class="page-heading">
+            <h1>Сповіщення та пропозиції</h1>
+            <button id="refresh" class="secondary" type="button">
+                Оновити дані
+            </button>
+        </div>
+
+        <p class="muted">
+            Переглядайте повідомлення про бронювання, бонуси та доступні пропозиції.
+        </p>
+
+        <div id="feedback" class="notice" role="status" hidden></div>
+
+        <section class="panel" aria-labelledby="inbox-title">
+            <div class="section-heading" style="margin-top: 0;">
+                <h2 id="inbox-title">Мої сповіщення</h2>
+                <span id="unread-count" class="badge" aria-live="polite">
+                    Непрочитаних: …
+                </span>
+            </div>
+
+            <form id="filters" class="filters">
+                <div>
+                    <label for="read-filter">Стан прочитання</label>
+                    <select id="read-filter">
+                        <option value="">Усі</option>
+                        <option value="false">Непрочитані</option>
+                        <option value="true">Прочитані</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label for="kind-filter">Тип повідомлення</label>
+                    <select id="kind-filter">
+                        <option value="">Усі типи</option>
+                        <option value="booking_confirmed">
+                            Підтвердження бронювання
+                        </option>
+                        <option value="reminder">Нагадування</option>
+                        <option value="bonus">Бонуси</option>
+                        <option value="offer">Пропозиції</option>
+                        <option value="info">Інформація</option>
+                    </select>
+                </div>
+
+                <button type="submit">Застосувати</button>
+            </form>
+
+            <p class="muted" style="margin: 16px 0 0;">
+                Лічильник показує всі непрочитані сповіщення незалежно від фільтрів.
+            </p>
+        </section>
+
+        <div id="messages" class="list" aria-live="polite"></div>
+
+        <section aria-labelledby="offers-title">
+            <div class="section-heading">
+                <h2 id="offers-title">Доступні пропозиції</h2>
+            </div>
+
+            <p class="muted">
+                Тут відображаються чинні пропозиції, доступні для вашої
+                категорії картки лояльності.
+            </p>
+
+            <div id="offers" class="list offers" aria-live="polite"></div>
+        </section>
+    </main>
+
+    <script>
+        (() => {
+            "use strict";
+
+            const urls = {
+                messages: "{% url 'notifications:notification-list' %}",
+                count: "{% url 'notifications:notification-unread-count' %}",
+                read: "{% url 'notifications:notification-mark-read' pk=987654321 %}",
+                offers: "{% url 'notifications:offer-list' %}",
+                csrf: "{% url 'accounts:csrf' %}",
+                login: "{% url 'web:login' %}"
+            };
+
+            const messages = document.getElementById("messages");
+            const offers = document.getElementById("offers");
+            const counter = document.getElementById("unread-count");
+            const feedback = document.getElementById("feedback");
+            const filters = document.getElementById("filters");
+            const readFilter = document.getElementById("read-filter");
+            const kindFilter = document.getElementById("kind-filter");
+            const refresh = document.getElementById("refresh");
+
+            let busy = false;
+
+            function element(tag, text, className) {
+                const node = document.createElement(tag);
+
+                if (text !== undefined) {
+                    node.textContent = text;
+                }
+
+                if (className) {
+                    node.className = className;
+                }
+
+                return node;
+            }
+
+            function showFeedback(text, success = false) {
+                feedback.textContent = text;
+                feedback.className = success ? "notice success" : "notice";
+                feedback.hidden = !text;
+            }
+
+            function setBusy(value) {
+                busy = value;
+
+                document.querySelectorAll("main button, main select")
+                    .forEach(control => {
+                        control.disabled = value;
+                    });
+            }
+
+            function formatDate(value) {
+                const date = new Date(value);
+
+                if (Number.isNaN(date.getTime())) {
+                    return "Дата недоступна";
+                }
+
+                return new Intl.DateTimeFormat("uk-UA", {
+                    dateStyle: "short",
+                    timeStyle: "short",
+                    timeZone: "Europe/Kyiv"
+                }).format(date);
+            }
+
+            function errorText(value) {
+                if (Array.isArray(value)) {
+                    return value.map(errorText).filter(Boolean).join("\n");
+                }
+
+                if (value && typeof value === "object") {
+                    return Object.values(value)
+                        .map(errorText)
+                        .filter(Boolean)
+                        .join("\n");
+                }
+
+                return value == null ? "" : String(value);
+            }
+
+            async function request(url, options = {}) {
+                const response = await fetch(url, {
+                    credentials: "same-origin",
+                    cache: "no-store",
+                    ...options
+                });
+
+                const data = await response.json().catch(() => null);
+
+                if (!response.ok) {
+                    if (
+                        options.method !== "POST"
+                        && (response.status === 401 || response.status === 403)
+                    ) {
+                        window.location.assign(urls.login);
+                    }
+
+                    const message = (
+                        response.status === 403
+                        ? "Сесію завершено або перевірку CSRF не пройдено. Оновіть сторінку."
+                        : errorText(data)
+                    );
+
+                    throw new Error(message || "Не вдалося виконати запит.");
+                }
+
+                return data;
+            }
+
+            async function getAll(url) {
+                const result = [];
+                const visited = new Set();
+                let next = url;
+
+                while (next) {
+                    const address = new URL(next, window.location.href);
+
+                    if (address.origin !== window.location.origin) {
+                        throw new Error("Некоректне посилання на наступну сторінку.");
+                    }
+
+                    if (visited.has(address.href)) {
+                        throw new Error("Не вдалося завершити завантаження списку.");
+                    }
+
+                    visited.add(address.href);
+
+                    const data = await request(address.href);
+
+                    if (Array.isArray(data)) {
+                        result.push(...data);
+                        break;
+                    }
+
+                    if (!data || !Array.isArray(data.results)) {
+                        throw new Error("Отримано некоректний формат списку.");
+                    }
+
+                    result.push(...data.results);
+                    next = data.next;
+                }
+
+                return result;
+            }
+
+            function renderMessages(items) {
+                messages.replaceChildren();
+
+                if (!items.length) {
+                    messages.append(element(
+                        "p",
+                        "За вибраними умовами сповіщень немає.",
+                        "empty"
+                    ));
+                    return;
+                }
+
+                items.forEach(item => {
+                    const card = element(
+                        "article",
+                        undefined,
+                        item.is_read ? "card" : "card unread"
+                    );
+
+                    const heading = element("div", undefined, "card-heading");
+
+                    heading.append(
+                        element("h3", item.kind_display || "Сповіщення"),
+                        element(
+                            "span",
+                            item.is_read ? "Прочитано" : "Непрочитане",
+                            item.is_read ? "badge read" : "badge"
+                        )
+                    );
+
+                    card.append(
+                        heading,
+                        element("p", item.message, "message"),
+                        element(
+                            "p",
+                            "Створено: " + formatDate(item.created_at),
+                            "muted"
+                        )
+                    );
+
+                    if (item.booking != null) {
+                        card.append(element(
+                            "p",
+                            "Бронювання №" + item.booking,
+                            "muted"
+                        ));
+                    }
+
+                    if (item.offer != null) {
+                        card.append(element(
+                            "p",
+                            "Пропозиція №" + item.offer,
+                            "muted"
+                        ));
+                    }
+
+                    if (!item.is_read) {
+                        const button = element(
+                            "button",
+                            "Позначити як прочитане"
+                        );
+
+                        button.type = "button";
+                        button.disabled = busy;
+                        button.addEventListener("click", () => markRead(item.id));
+                        card.append(button);
+                    }
+
+                    messages.append(card);
+                });
+            }
+
+            function renderOffers(items) {
+                offers.replaceChildren();
+
+                if (!items.length) {
+                    offers.append(element(
+                        "p",
+                        "Наразі доступних пропозицій немає.",
+                        "empty"
+                    ));
+                    return;
+                }
+
+                items.forEach(item => {
+                    const card = element("article", undefined, "card");
+
+                    card.append(
+                        element(
+                            "span",
+                            item.target_card_category_display,
+                            "badge"
+                        ),
+                        element("h3", item.title),
+                        element("p", item.description, "message"),
+                        element(
+                            "p",
+                            "Початок: " + formatDate(item.starts_at),
+                            "muted"
+                        ),
+                        element(
+                            "p",
+                            "Завершення: " + formatDate(item.ends_at),
+                            "muted"
+                        )
+                    );
+
+                    offers.append(card);
+                });
+            }
+
+            async function loadMessages() {
+                const url = new URL(urls.messages, window.location.origin);
+
+                if (readFilter.value !== "") {
+                    url.searchParams.set("is_read", readFilter.value);
+                }
+
+                if (kindFilter.value !== "") {
+                    url.searchParams.set("kind", kindFilter.value);
+                }
+
+                try {
+                    renderMessages(await getAll(url.href));
+                } catch (error) {
+                    messages.replaceChildren(element(
+                        "p",
+                        "Не вдалося завантажити сповіщення.",
+                        "empty"
+                    ));
+                    throw error;
+                }
+            }
+
+            async function loadCount() {
+                try {
+                    const data = await request(urls.count);
+                    counter.textContent = "Непрочитаних: " + data.unread_count;
+                } catch (error) {
+                    counter.textContent = "Лічильник недоступний";
+                    throw error;
+                }
+            }
+
+            async function loadOffers() {
+                try {
+                    renderOffers(await getAll(urls.offers));
+                } catch (error) {
+                    offers.replaceChildren(element(
+                        "p",
+                        "Не вдалося завантажити пропозиції.",
+                        "empty"
+                    ));
+                    throw error;
+                }
+            }
+
+            async function refreshData(includeOffers) {
+                const jobs = [
+                    ["сповіщення", loadMessages()],
+                    ["лічильник", loadCount()]
+                ];
+
+                if (includeOffers) {
+                    jobs.push(["пропозиції", loadOffers()]);
+                }
+
+                const results = await Promise.allSettled(
+                    jobs.map(job => job[1])
+                );
+
+                return results.flatMap((result, index) => (
+                    result.status === "rejected" ? [jobs[index][0]] : []
+                ));
+            }
+
+            async function updatePage(includeOffers = true) {
+                if (busy) {
+                    return;
+                }
+
+                setBusy(true);
+                showFeedback("");
+
+                try {
+                    const failures = await refreshData(includeOffers);
+
+                    if (failures.length) {
+                        showFeedback(
+                            "Не вдалося оновити: " + failures.join(", ")
+                            + ". Спробуйте натиснути «Оновити дані»."
+                        );
+                    }
+                } finally {
+                    setBusy(false);
+                }
+            }
+
+            async function markRead(id) {
+                if (busy) {
+                    return;
+                }
+
+                setBusy(true);
+                showFeedback("");
+                let submitted = false;
+
+                try {
+                    const csrf = await request(urls.csrf);
+
+                    if (!csrf || !csrf.csrfToken) {
+                        throw new Error("Не вдалося отримати CSRF-токен.");
+                    }
+
+                    const url = urls.read.replace("987654321", String(id));
+
+                    submitted = true;
+
+                    await request(url, {
+                        method: "POST",
+                        headers: {
+                            "X-CSRFToken": csrf.csrfToken,
+                            "Content-Type": "application/json"
+                        },
+                        body: JSON.stringify({})
+                    });
+
+                    const failures = await refreshData(false);
+
+                    if (failures.length) {
+                        showFeedback(
+                            "Сповіщення позначено як прочитане, але частину "
+                            + "даних не вдалося оновити. Натисніть «Оновити дані»."
+                        );
+                    } else {
+                        showFeedback(
+                            "Сповіщення позначено як прочитане.",
+                            true
+                        );
+                    }
+                } catch (error) {
+                    if (submitted && error instanceof TypeError) {
+                        showFeedback(
+                            "Не вдалося отримати результат запиту. "
+                            + "Оновіть дані, щоб перевірити стан сповіщення."
+                        );
+                    } else {
+                        showFeedback(error.message || "Не вдалося змінити стан.");
+                    }
+                } finally {
+                    setBusy(false);
+                }
+            }
+
+            filters.addEventListener("submit", event => {
+                event.preventDefault();
+                updatePage(false);
+            });
+
+            refresh.addEventListener("click", () => updatePage(true));
+
+            updatePage(true);
+        })();
+    </script>
+</body>
+</html>

@@ -15,4 +15,5 @@ urlpatterns = [
     path("bookings/", views.bookings_page, name="bookings"),
     path("bookings/<int:booking_id>/confirm/", views.booking_checkout_page, name="booking-checkout"),
     path("loyalty/", views.loyalty_page, name="loyalty"),
+    path("notifications/", views.notifications_page, name="notifications"),
 ]

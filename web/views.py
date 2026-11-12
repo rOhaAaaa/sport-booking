@@ -65,3 +65,9 @@ def booking_checkout_page(request, booking_id):
 @require_GET
 def loyalty_page(request):
     return render(request, "web/loyalty.html")
+
+@never_cache
+@login_required(login_url="web:login")
+@require_GET
+def notifications_page(request):
+    return render(request, "web/notifications.html")
