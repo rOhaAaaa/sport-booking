@@ -51,9 +51,17 @@ def bookings_page(request):
 @never_cache
 @login_required(login_url="web:login")
 @require_GET
+
 def booking_checkout_page(request, booking_id):
     return render(
         request,
         "web/checkout.html",
         {"booking_id": booking_id},
     )
+
+
+@never_cache
+@login_required(login_url="web:login")
+@require_GET
+def loyalty_page(request):
+    return render(request, "web/loyalty.html")

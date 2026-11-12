@@ -1,0 +1,784 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Абонементи та бонуси — СпортПростір</title>
+
+    <style>
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            background: #f5f7fb;
+            color: #172339;
+            font: 16px/1.6 system-ui, sans-serif;
+        }
+
+        header {
+            background: white;
+            border-bottom: 1px solid #dfe6f1;
+        }
+
+        .navigation {
+            max-width: 1120px;
+            margin: auto;
+            padding: 22px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+
+        .brand {
+            color: #2359d1;
+            font-size: 26px;
+            font-weight: 800;
+            text-decoration: none;
+        }
+
+        .links {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+
+        a { color: #2359d1; }
+        .links a { text-decoration: none; }
+
+        main {
+            max-width: 1120px;
+            margin: 40px auto;
+            padding: 0 20px;
+        }
+
+        h1 { margin: 0 0 8px; }
+        h2 { margin: 0 0 20px; font-size: 24px; }
+        h3 { margin: 12px 0; font-size: 21px; }
+
+        .intro, .hint { color: #64748b; }
+        .intro { margin: 0 0 24px; }
+        .hint { font-size: 14px; }
+
+        section { margin-bottom: 36px; }
+
+        .panel, .item {
+            background: white;
+            border: 1px solid #dfe6f1;
+            border-radius: 18px;
+            padding: 26px;
+            min-width: 0;
+        }
+
+        .item p { margin: 7px 0; overflow-wrap: anywhere; }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 20px;
+        }
+
+        .overview {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 24px;
+            margin-bottom: 36px;
+        }
+
+        .overview section { margin: 0; }
+
+        .badge {
+            display: inline-block;
+            background: #edf3ff;
+            color: #2359d1;
+            padding: 4px 10px;
+            border-radius: 7px;
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .badge.available {
+            background: #eaf8ef;
+            color: #17653a;
+        }
+
+        .badge.inactive {
+            background: #f1f3f6;
+            color: #64748b;
+        }
+
+        .amount {
+            font-size: 25px;
+            font-weight: 800;
+        }
+
+        .points {
+            margin: 12px 0;
+            color: #2359d1;
+            font-size: 40px;
+            font-weight: 800;
+        }
+
+        .field { margin-bottom: 18px; }
+
+        label {
+            display: block;
+            margin-bottom: 6px;
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        select {
+            width: 100%;
+            min-width: 0;
+            padding: 12px;
+            border: 1px solid #cbd5e1;
+            border-radius: 9px;
+            background: white;
+            color: #172339;
+            font: inherit;
+        }
+
+        button {
+            border: 0;
+            border-radius: 9px;
+            padding: 12px 18px;
+            background: #2359d1;
+            color: white;
+            font: inherit;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        button:disabled {
+            opacity: .6;
+            cursor: wait;
+        }
+
+        .secondary {
+            background: #edf3ff;
+            color: #2359d1;
+        }
+
+        a:focus-visible, select:focus-visible, button:focus-visible {
+            outline: 3px solid #b9ceff;
+            outline-offset: 2px;
+        }
+
+        .notice {
+            padding: 14px;
+            border-radius: 9px;
+            margin-bottom: 20px;
+            background: #fff0f1;
+            color: #a51d2d;
+            white-space: pre-line;
+        }
+
+        .notice.success {
+            background: #eaf8ef;
+            color: #17653a;
+        }
+
+        .empty {
+            grid-column: 1 / -1;
+            padding: 22px;
+            border: 1px dashed #cbd5e1;
+            border-radius: 12px;
+            color: #64748b;
+        }
+
+        .heading-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            flex-wrap: wrap;
+            margin-bottom: 24px;
+        }
+
+        .heading-row h1 { margin: 0; }
+
+        [hidden] { display: none !important; }
+
+        @media (max-width: 950px) {
+            .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        }
+
+        @media (max-width: 700px) {
+            .overview, .grid { grid-template-columns: 1fr; }
+            main { margin: 24px auto; }
+            .panel, .item { padding: 22px; }
+        }
+    </style>
+</head>
+
+<body>
+    {% include "web/account_bar.html" %}
+
+    <header>
+        <nav class="navigation" aria-label="Основна навігація">
+            <a class="brand" href="{% url 'web:home' %}">СпортПростір.</a>
+            <div class="links">
+                <a href="{% url 'web:bookings' %}">Мої бронювання</a>
+                <a href="{% url 'web:profile' %}">Мій профіль</a>
+            </div>
+        </nav>
+    </header>
+
+    <main>
+        <div class="heading-row">
+            <h1>Абонементи та бонуси</h1>
+            <button id="refresh" class="secondary" type="button" disabled>
+                Оновити дані
+            </button>
+        </div>
+
+        <p class="intro">
+            Обирайте тариф, переглядайте власні абонементи
+            та бонусні нарахування.
+        </p>
+
+        <p id="loading" role="status">Завантаження даних…</p>
+        <div id="load-error" class="notice" role="alert" hidden></div>
+
+        <div class="overview">
+            <section class="panel" aria-labelledby="card-heading">
+                <h2 id="card-heading">Моя картка лояльності</h2>
+                <div id="loyalty-card"></div>
+            </section>
+
+            <section class="panel" aria-labelledby="purchase-heading">
+                <h2 id="purchase-heading">Придбати абонемент</h2>
+
+                <div id="purchase-notice" class="notice"
+                     role="alert" hidden></div>
+
+                <form id="purchase-form">
+                    <div class="field">
+                        <label for="plan">Тариф</label>
+                        <select id="plan" required disabled>
+                            <option value="">Оберіть тариф</option>
+                        </select>
+                    </div>
+
+                    <p id="selected-price" class="amount"></p>
+
+                    <div class="field">
+                        <label for="payment-result">
+                            Результат тестової оплати
+                        </label>
+                        <select id="payment-result">
+                            <option value="success">Успішна оплата</option>
+                            <option value="failed">Невдала оплата</option>
+                        </select>
+                    </div>
+
+                    <p class="hint">
+                        Навчальна імітація оплати.
+                        Реальні кошти не списуються.
+                        Строк дії починається з моменту придбання.
+                    </p>
+
+                    <button id="purchase-button" type="submit" disabled>
+                        Придбати абонемент
+                    </button>
+                </form>
+            </section>
+        </div>
+
+        <section aria-labelledby="plans-heading">
+            <h2 id="plans-heading">Доступні тарифи</h2>
+            <div id="plans" class="grid"></div>
+        </section>
+
+        <section aria-labelledby="memberships-heading">
+            <h2 id="memberships-heading">Мої абонементи</h2>
+            <p class="hint">
+                Для оренди залу одна одиниця абонемента покриває
+                годину; неповна година округлюється вгору.
+                Для заняття списується одне відвідування.
+            </p>
+            <div id="memberships" class="grid"></div>
+        </section>
+
+        <section aria-labelledby="bonuses-heading">
+            <h2 id="bonuses-heading">Історія нарахування бонусів</h2>
+            <div id="bonuses" class="grid"></div>
+        </section>
+
+        <noscript>
+            Для роботи сторінки увімкніть JavaScript у браузері.
+        </noscript>
+    </main>
+
+    <script>
+    (() => {
+        const planSelect = document.getElementById("plan");
+        const purchaseButton = document.getElementById("purchase-button");
+        const refreshButton = document.getElementById("refresh");
+        const purchaseNotice = document.getElementById("purchase-notice");
+        const loadError = document.getElementById("load-error");
+        const loading = document.getElementById("loading");
+
+        const money = new Intl.NumberFormat("uk-UA", {
+            style: "currency",
+            currency: "UAH"
+        });
+
+        const dateTime = new Intl.DateTimeFormat("uk-UA", {
+            dateStyle: "short",
+            timeStyle: "short",
+            timeZone: "Europe/Kyiv"
+        });
+
+        let plans = [];
+        let loadingData = false;
+        let purchasing = false;
+
+        function element(tag, className, text) {
+            const item = document.createElement(tag);
+            if (className) item.className = className;
+            if (text !== undefined) item.textContent = text;
+            return item;
+        }
+
+        function messages(value) {
+            if (Array.isArray(value)) {
+                return value.map(messages).join("\n");
+            }
+            if (value !== null && typeof value === "object") {
+                return Object.values(value).map(messages).join("\n");
+            }
+            return String(value);
+        }
+
+        function showPurchaseNotice(message, success = false) {
+            purchaseNotice.textContent = message;
+            purchaseNotice.classList.toggle("success", success);
+            purchaseNotice.hidden = false;
+        }
+
+        function updateControls() {
+            refreshButton.disabled = loadingData || purchasing;
+            planSelect.disabled =
+                loadingData || purchasing || !plans.length;
+            purchaseButton.disabled =
+                loadingData || purchasing || !planSelect.value;
+        }
+
+        async function getData(url) {
+            const response = await fetch(url, {
+                credentials: "same-origin",
+                cache: "no-store",
+                headers: {"Accept": "application/json"}
+            });
+
+            if (response.status === 401 || response.status === 403) {
+                throw new Error(
+                    "Сеанс завершився. Оновіть сторінку та увійдіть знову."
+                );
+            }
+
+            if (!response.ok) {
+                throw new Error("Сервер не зміг завантажити дані.");
+            }
+
+            return await response.json();
+        }
+
+        async function getAll(url) {
+            const records = [];
+
+            while (url) {
+                const data = await getData(url);
+
+                if (Array.isArray(data)) {
+                    records.push(...data);
+                    url = null;
+                } else if (Array.isArray(data.results)) {
+                    records.push(...data.results);
+                    url = data.next;
+                } else {
+                    throw new Error("Неочікуваний формат відповіді.");
+                }
+            }
+
+            return records;
+        }
+
+        function draw(id, records, builder, emptyText) {
+            const container = document.getElementById(id);
+            container.replaceChildren();
+
+            if (records.length) {
+                container.append(...records.map(builder));
+            } else {
+                container.append(element("p", "empty", emptyText));
+            }
+        }
+
+        function planCard(plan) {
+            const card = element("article", "item");
+
+            card.append(
+                element("span", "badge", plan.kind_display),
+                element("h3", "", plan.name),
+                element("p", "amount", money.format(Number(plan.price))),
+                element("p", "", "Строк дії: " + plan.validity_days + " днів"),
+                element(
+                    "p",
+                    "",
+                    "Ліміт: " +
+                    (
+                        plan.visit_limit === null
+                            ? "без обмеження"
+                            : plan.visit_limit
+                    )
+                ),
+                element("p", "hint", plan.service_scope_display),
+                element(
+                    "p",
+                    "hint",
+                    "Вид спорту: " + (plan.sport_type_name || "Усі")
+                )
+            );
+
+            return card;
+        }
+
+        function membershipCard(membership) {
+            const card = element("article", "item");
+            const now = new Date();
+            let label = membership.status_display;
+            let available = false;
+
+            if (membership.status === "active") {
+                if (new Date(membership.valid_until) <= now) {
+                    label = "Строк дії завершився";
+                } else if (new Date(membership.valid_from) > now) {
+                    label = "Ще не діє";
+                } else if (membership.remaining_visits === 0) {
+                    label = "Відвідування використано";
+                } else {
+                    label = "Доступний";
+                    available = true;
+                }
+            }
+
+            card.append(
+                element(
+                    "span",
+                    "badge " + (available ? "available" : "inactive"),
+                    label
+                ),
+                element(
+                    "h3",
+                    "",
+                    "№" + membership.id + " · " + membership.plan.name
+                ),
+                element(
+                    "p",
+                    "",
+                    "Залишок: " +
+                    (
+                        membership.remaining_visits === null
+                            ? "без обмеження"
+                            : membership.remaining_visits
+                    )
+                ),
+                element(
+                    "p",
+                    "hint",
+                    "Початок: " +
+                    dateTime.format(new Date(membership.valid_from))
+                ),
+                element(
+                    "p",
+                    "hint",
+                    "Завершення: " +
+                    dateTime.format(new Date(membership.valid_until))
+                ),
+                element("p", "hint", membership.plan.service_scope_display),
+                element(
+                    "p",
+                    "hint",
+                    "Вид спорту: " +
+                    (membership.plan.sport_type_name || "Усі")
+                )
+            );
+
+            return card;
+        }
+
+        function bonusCard(bonus) {
+            const card = element("article", "item");
+
+            card.append(
+                element("span", "badge", "Бронювання №" + bonus.booking),
+                element("p", "amount", "+" + bonus.points + " балів"),
+                element(
+                    "p",
+                    "hint",
+                    dateTime.format(new Date(bonus.created_at))
+                )
+            );
+
+            return card;
+        }
+
+        function renderCard(card) {
+            const container = document.getElementById("loyalty-card");
+            container.replaceChildren(
+                element("span", "badge", card.category_display),
+                element("p", "points", card.total_points + " балів"),
+                element("p", "hint", "Номер картки: " + card.id),
+                element(
+                    "p",
+                    "hint",
+                    "Категорія картки визначає пільги та правила " +
+                    "нарахування бонусів. Придбання абонемента " +
+                    "не змінює категорію картки."
+                )
+            );
+        }
+
+        function renderPlans(records) {
+            plans = records;
+            const selected = planSelect.value;
+
+            planSelect.replaceChildren(
+                element("option", "", "Оберіть тариф")
+            );
+            planSelect.options[0].value = "";
+
+            for (const plan of plans) {
+                const option = element(
+                    "option",
+                    "",
+                    plan.name + " · " + money.format(Number(plan.price))
+                );
+                option.value = plan.id;
+                planSelect.append(option);
+            }
+
+            if (plans.some(plan => String(plan.id) === selected)) {
+                planSelect.value = selected;
+            }
+
+            draw("plans", plans, planCard, "Тарифів поки немає.");
+            updateSelectedPrice();
+        }
+
+        function renderMemberships(records) {
+            draw(
+                "memberships",
+                records,
+                membershipCard,
+                "У вас ще немає абонементів."
+            );
+        }
+
+        function updateSelectedPrice() {
+            const plan = plans.find(
+                item => String(item.id) === planSelect.value
+            );
+
+            document.getElementById("selected-price").textContent =
+                plan ? money.format(Number(plan.price)) : "";
+
+            updateControls();
+        }
+
+        async function loadPage() {
+            if (loadingData || purchasing) return;
+
+            loadingData = true;
+            loading.hidden = false;
+            loadError.hidden = true;
+            updateControls();
+
+            const jobs = [
+                {
+                    label: "Картка лояльності",
+                    id: "loyalty-card",
+                    load: () => getData("{% url 'loyalty:card' %}"),
+                    render: renderCard
+                },
+                {
+                    label: "Тарифи",
+                    id: "plans",
+                    load: () => getAll("{% url 'loyalty:plan-list' %}"),
+                    render: renderPlans
+                },
+                {
+                    label: "Мої абонементи",
+                    id: "memberships",
+                    load: () => getAll("{% url 'loyalty:membership-list' %}"),
+                    render: renderMemberships
+                },
+                {
+                    label: "Бонусні нарахування",
+                    id: "bonuses",
+                    load: () => getAll("{% url 'loyalty:bonus-list' %}"),
+                    render: records => draw(
+                        "bonuses",
+                        records,
+                        bonusCard,
+                        "Бонусних нарахувань поки немає."
+                    )
+                }
+            ];
+
+            try {
+                const results = await Promise.allSettled(
+                    jobs.map(job => job.load())
+                );
+                const errors = [];
+
+                results.forEach((result, index) => {
+                    const job = jobs[index];
+
+                    if (result.status === "fulfilled") {
+                        job.render(result.value);
+                    } else {
+                        errors.push(job.label);
+                        document.getElementById(job.id).replaceChildren(
+                            element(
+                                "p",
+                                "hint",
+                                "Не вдалося завантажити. Натисніть «Оновити дані»."
+                            )
+                        );
+
+                        if (job.id === "plans") {
+                            plans = [];
+                            planSelect.replaceChildren(
+                                element("option", "", "Тарифи недоступні")
+                            );
+                            planSelect.options[0].value = "";
+                            document.getElementById("selected-price")
+                                .textContent = "";
+                        }
+                    }
+                });
+
+                if (errors.length) {
+                    loadError.textContent =
+                        "Не вдалося оновити: " + errors.join(", ") +
+                        ". Повторіть завантаження або увійдіть знову.";
+                    loadError.hidden = false;
+                }
+            } finally {
+                loadingData = false;
+                loading.hidden = true;
+                updateControls();
+            }
+        }
+
+        document.getElementById("purchase-form").addEventListener(
+            "submit",
+            async event => {
+                event.preventDefault();
+                if (purchasing || loadingData) return;
+
+                purchasing = true;
+                purchaseNotice.hidden = true;
+                purchaseButton.textContent = "Придбання…";
+                updateControls();
+
+                let sent = false;
+
+                try {
+                    const token = await getData(
+                        "{% url 'accounts:csrf' %}"
+                    );
+
+                    sent = true;
+
+                    const response = await fetch(
+                        "{% url 'loyalty:membership-purchase' %}",
+                        {
+                            method: "POST",
+                            credentials: "same-origin",
+                            headers: {
+                                "Accept": "application/json",
+                                "Content-Type": "application/json",
+                                "X-CSRFToken": token.csrfToken
+                            },
+                            body: JSON.stringify({
+                                plan_id: Number(planSelect.value),
+                                payment_successful:
+                                    document.getElementById("payment-result")
+                                        .value === "success"
+                            })
+                        }
+                    );
+
+                    const type = response.headers.get("content-type") || "";
+                    const data = type.includes("application/json")
+                        ? await response.json()
+                        : null;
+
+                    if (!response.ok) {
+                        if (response.status === 400 && data) {
+                            showPurchaseNotice(messages(data));
+                            return;
+                        }
+
+                        if (response.status === 401 || response.status === 403) {
+                            throw new Error(
+                                "Не вдалося підтвердити сеанс. " +
+                                "Оновіть сторінку та увійдіть за потреби."
+                            );
+                        }
+
+                        throw new Error(
+                            "Не вдалося отримати результат операції. " +
+                            "Перевірте список абонементів перед повторною спробою."
+                        );
+                    }
+
+                    showPurchaseNotice(
+                        "Абонемент №" + data.id + " «" +
+                        data.plan.name + "» успішно придбано.",
+                        true
+                    );
+
+                    try {
+                        renderMemberships(
+                            await getAll(
+                                "{% url 'loyalty:membership-list' %}"
+                            )
+                        );
+                    } catch {
+                        loadError.textContent =
+                            "Абонемент придбано, але список не оновився. " +
+                            "Натисніть «Оновити дані».";
+                        loadError.hidden = false;
+                    }
+                } catch (error) {
+                    showPurchaseNotice(
+                        error instanceof TypeError
+                            ? sent
+                                ? "З’єднання перервано. Перевірте список " +
+                                  "абонементів перед повторною покупкою: " +
+                                  "попередня могла завершитися успішно."
+                                : "Немає зв’язку із сервером. Спробуйте ще раз."
+                            : error.message
+                    );
+                } finally {
+                    purchasing = false;
+                    purchaseButton.textContent = "Придбати абонемент";
+                    updateControls();
+                }
+            }
+        );
+
+        planSelect.addEventListener("change", updateSelectedPrice);
+        refreshButton.addEventListener("click", loadPage);
+        loadPage();
+    })();
+    </script>
+</body>
+</html>
